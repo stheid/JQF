@@ -2,9 +2,9 @@
   <configuration default="false" name="RunnerKt" type="JetRunConfigurationType" nameIsGenerated="true">
     <option name="MAIN_CLASS_NAME" value="RunnerKt" />
     <module name="jqf.data-extract.main" />
-    <option name="PROGRAM_PARAMETERS" value="edu.berkeley.cs.jqf.examples.maven.ModelReaderTest testWithGenerator" />
+    <option name="PROGRAM_PARAMETERS" value="edu.berkeley.cs.jqf.examples.simple.SimpleClassTest testWithGenerator" />
     <shortenClasspath name="NONE" />
-    <option name="VM_PARAMETERS" value="-cp $Classpath$:examples/build/classes/java/test/edu/berkeley/cs/jqf/examples/maven" />
+    <option name="VM_PARAMETERS" value="-javaagent:$PROJECT_DIR$/instrument/build/libs/jqf-instrument-2.0-SNAPSHOT.jar -cp $Classpath$:examples/build/classes/java/test/edu/berkeley/cs/jqf/examples/simple" />
     <method v="2">
       <option name="Make" enabled="true" />
     </method>
