@@ -1,0 +1,13 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="RunnerKt" type="JetRunConfigurationType" nameIsGenerated="true">
+    <option name="MAIN_CLASS_NAME" value="RunnerKt" />
+    <module name="jqf.data-extract.main" />
+    <option name="PROGRAM_PARAMETERS" value="edu.berkeley.cs.jqf.examples.maven.ModelReaderTest testWithGenerator" />
+    <shortenClasspath name="NONE" />
+    <option name="VM_PARAMETERS" value="-cp $Classpath$:$PROJECT_DIR$/examples/build/classes/java/test/edu/berkeley/cs/jqf/examples/maven" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+      <option name="Gradle.BeforeRunTask" enabled="false" tasks="testClasses" externalProjectPath="$PROJECT_DIR$/examples" vmOptions="" scriptParameters="" />
+    </method>
+  </configuration>
+</component>
