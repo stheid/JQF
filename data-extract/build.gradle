@@ -21,6 +21,7 @@ compileTestKotlin {
 
 dependencies {
     api project(':jqf-fuzz')
+    api project(':jqf-instrument')
     runtimeOnly project(":jqf-examples")
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
 }
