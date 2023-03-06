@@ -24,6 +24,9 @@ class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?
 
 
 fun main(args: Array<String>) {
+    // wait for the JVM to be completely ready with javaagent and so on
+    Thread.sleep(1_000)
+
     if (args.size < 2) {
         System.err.println("Usage: java " + ZestDriver::class.java + "TEST_CLASS TEST_METHOD")
         exitProcess(1)
