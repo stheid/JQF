@@ -6,7 +6,6 @@ import java.io.File
 import java.lang.Boolean
 import java.time.Duration
 import kotlin.Array
-import kotlin.Exception
 import kotlin.String
 import kotlin.system.exitProcess
 
@@ -26,13 +25,13 @@ class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?
 
 fun main(args: Array<String>) {
     if (args.size < 2) {
-        System.err.println("Usage: java " + ZestDriver::class.java + " TEST_CLASS TEST_METHOD [OUTPUT_DIR [SEED_DIR | SEED_FILES...]]")
+        System.err.println("Usage: java " + ZestDriver::class.java + "TEST_CLASS TEST_METHOD")
         exitProcess(1)
     }
+
     val testClassName = args[0]
     val testMethodName = args[1]
-    val outputDirectoryName = if (args.size > 2) args[2] else "fuzz-results"
-    val outputDirectory = File(outputDirectoryName)
+    val outputDirectory = File("fuzz-results")
 
     try {
         // Load the guidance
