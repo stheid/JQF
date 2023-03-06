@@ -4,7 +4,7 @@
     <module name="jqf.data-extract.main" />
     <option name="PROGRAM_PARAMETERS" value="edu.berkeley.cs.jqf.examples.maven.ModelReaderTest testWithGenerator" />
     <shortenClasspath name="NONE" />
-    <option name="VM_PARAMETERS" value="-Xbootclasspath/a:$USER_HOME$/Downloads/jqf-instrument-2.0-SNAPSHOT.jar:$USER_HOME$/Downloads/asm-9.4.jar -javaagent:$USER_HOME$/Downloads/jqf-instrument-2.0-SNAPSHOT.jar -cp $Classpath$" />
+    <option name="VM_PARAMETERS" value="-Xbootclasspath/a:$PROJECT_DIR$/../JQF_original/instrument/target/jqf-instrument-2.0-SNAPSHOT.jar:$PROJECT_DIR$/../JQF_original/instrument/target/dependency/asm-9.4.jar -javaagent:$PROJECT_DIR$/../JQF_original/instrument/target/jqf-instrument-2.0-SNAPSHOT.jar -cp $Classpath$ -Djanala.conf=&quot;scripts/janala.conf&quot;" />
     <method v="2">
       <option name="Make" enabled="true" />
     </method>
