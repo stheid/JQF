@@ -1187,6 +1187,10 @@ public class ZestGuidance implements Guidance {
             double uniform = random.nextDouble();
             return (int) ceil(log(1 - uniform) / log(1 - p));
         }
+
+        public void dec_offspring() {
+            offspring -= 1;
+        }
     }
 
     public class LinearInput extends Input<Integer> {
