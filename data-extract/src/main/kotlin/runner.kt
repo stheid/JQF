@@ -3,10 +3,13 @@ import edu.berkeley.cs.jqf.fuzz.ei.ZestGuidance
 import edu.berkeley.cs.jqf.fuzz.guidance.Result
 import edu.berkeley.cs.jqf.fuzz.junit.GuidedFuzzing
 import edu.berkeley.cs.jqf.fuzz.util.ICoverage
+import edu.berkeley.cs.jqf.instrument.tracing.events.BranchEvent
 import edu.berkeley.cs.jqf.instrument.tracing.events.TraceEvent
 import org.eclipse.collections.api.iterator.IntIterator
 import org.eclipse.collections.impl.set.mutable.primitive.IntHashSet
+import java.io.DataOutputStream
 import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
 import java.security.MessageDigest
@@ -17,8 +20,8 @@ import kotlin.system.exitProcess
 class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?) :
     ZestGuidance(testName, duration, outputDirectory) {
     // call event -> 0, return event -> 1, branch event -> 2, total events -> 3
-    var events = mutableListOf<TraceEvent?>()
-//    var inputsFile = File("fuzz-results/inputs.csv")
+    var events = mutableListOf<Int>()
+    val eventsFile = File("fuzz-results/events.csv").apply { bufferedWriter().write("") }
     override fun displayStats(force: kotlin.Boolean) {
 //        super.displayStats(force)
     }
@@ -32,34 +35,33 @@ class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?
     }
 
     override fun handleEvent(e: TraceEvent?) {
-        events.add(e)
+        if(e is BranchEvent)
+            events.add(e.iid)
         super.handleEvent(e)
-    }
-
-    private fun hash(str:String): String {
-            val bytes = str.toByteArray()
-            val md = MessageDigest.getInstance("SHA-256")
-            val digest = md.digest(bytes)
-            return digest.fold("") { s, it -> s + "%02x".format(it) }.substring(0,6)
-
     }
 
     override fun handleResult(result: Result?, error: Throwable?) {
 //        println("total events for input ${this.numTrials}: ${events.size}")
 //        events.toList().filterIsInstance<BranchEvent>().take(40).forEach { print(hash(it.iid.toString())+" ") }
 //        println()
+        val st = FileOutputStream(eventsFile, true)
+        val intEvents = events.toList().toIntArray()
+        val dst= DataOutputStream(st)
+        dst.writeInt(intEvents.size)
+        intEvents.forEach { dst.writeInt(it)}
+
         events = mutableListOf()
         super.handleResult(result, error)
-//        val maxAllowedInputs = 11
-//        if (this.numTrials > maxAllowedInputs){
-//            println("Finished $maxAllowedInputs trials")
-//            exitProcess(0)
-//        }
+        val maxAllowedInputs = 1000
+
+        if (numTrials >= maxAllowedInputs){
+            println("Finished $numTrials trials")
+            exitProcess(0)
+        }
     }
 
     override fun checkSavingCriteriaSatisfied(result: Result?): List<String> {
-        return super.checkSavingCriteriaSatisfied(result)?: listOf("dumpall")
-
+        return super.checkSavingCriteriaSatisfied(result).apply { add("dumpall")}
     }
 
     @Throws(IOException::class)
