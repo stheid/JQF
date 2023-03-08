@@ -15,13 +15,14 @@ import java.io.InputStream
 import java.time.Duration
 import java.util.*
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import kotlin.system.exitProcess
 
 class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?) :
     ZestGuidance(testName, duration, outputDirectory) {
     private var events = mutableListOf<Int>()
     private val eventsFile = File("fuzz-results/events.bin").apply { bufferedWriter().write("") }
-    private val executor = Executors.newFixedThreadPool(2)
+    private val executor = Executors.newSingleThreadExecutor()
 
     override fun displayStats(force: kotlin.Boolean) {
 //        super.displayStats(force)
@@ -41,8 +42,8 @@ class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?
     }
 
     override fun handleResult(result: Result?, error: Throwable?) {
+        val eventList = events.toList()
         executor.execute {
-            val eventList = events.toList()
             DataOutputStream(BufferedOutputStream(FileOutputStream(eventsFile, true))).also { dst ->
                 dst.writeInt(eventList.size)
                 eventList.forEach(dst::writeInt)
@@ -55,6 +56,7 @@ class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?
 
         if (numTrials >= maxAllowedInputs) {
             executor.shutdown()
+            executor.awaitTermination(1000, TimeUnit.MINUTES)
             println("Finished $numTrials trials")
             println("Time consumed ${"%.2f".format((Date().time - startTime.time) / 1000.0)}s")
             exitProcess(0)
