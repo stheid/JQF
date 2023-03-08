@@ -41,9 +41,6 @@ class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?
     }
 
     override fun handleResult(result: Result?, error: Throwable?) {
-//        println("total events for input ${this.numTrials}: ${events.size}")
-//        events.toList().filterIsInstance<BranchEvent>().take(40).forEach { print(hash(it.iid.toString())+" ") }
-//        println()
         val eventList = events.toList()
         DataOutputStream(BufferedOutputStream(FileOutputStream(eventsFile, true))).also { dst ->
             dst.writeInt(eventList.size)
