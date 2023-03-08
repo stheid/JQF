@@ -14,14 +14,14 @@ import java.io.IOException
 import java.io.InputStream
 import java.time.Duration
 import java.util.*
+import java.util.concurrent.Executors
 import kotlin.system.exitProcess
-
 
 class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?) :
     ZestGuidance(testName, duration, outputDirectory) {
-    // call event -> 0, return event -> 1, branch event -> 2, total events -> 3
-    var events = mutableListOf<Int>()
-    val eventsFile = File("fuzz-results/events.bin").apply { bufferedWriter().write("") }
+    private var events = mutableListOf<Int>()
+    private val eventsFile = File("fuzz-results/events.bin").apply { bufferedWriter().write("") }
+    private val executor = Executors.newFixedThreadPool(2)
 
     override fun displayStats(force: kotlin.Boolean) {
 //        super.displayStats(force)
@@ -41,17 +41,20 @@ class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?
     }
 
     override fun handleResult(result: Result?, error: Throwable?) {
-        val eventList = events.toList()
-        DataOutputStream(BufferedOutputStream(FileOutputStream(eventsFile, true))).also { dst ->
-            dst.writeInt(eventList.size)
-            eventList.forEach(dst::writeInt)
+        executor.execute {
+            val eventList = events.toList()
+            DataOutputStream(BufferedOutputStream(FileOutputStream(eventsFile, true))).also { dst ->
+                dst.writeInt(eventList.size)
+                eventList.forEach(dst::writeInt)
+            }
         }
 
         events = mutableListOf()
         super.handleResult(result, error)
-        val maxAllowedInputs = 1000
+        val maxAllowedInputs = 50000
 
         if (numTrials >= maxAllowedInputs) {
+            executor.shutdown()
             println("Finished $numTrials trials")
             println("Time consumed ${"%.2f".format((Date().time - startTime.time) / 1000.0)}s")
             exitProcess(0)
