@@ -7,6 +7,7 @@ import edu.berkeley.cs.jqf.instrument.tracing.events.BranchEvent
 import edu.berkeley.cs.jqf.instrument.tracing.events.TraceEvent
 import org.eclipse.collections.api.iterator.IntIterator
 import org.eclipse.collections.impl.set.mutable.primitive.IntHashSet
+import java.io.BufferedOutputStream
 import java.io.DataOutputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -20,8 +21,8 @@ import kotlin.system.exitProcess
 class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?) :
     ZestGuidance(testName, duration, outputDirectory) {
     // call event -> 0, return event -> 1, branch event -> 2, total events -> 3
-    var events = mutableListOf<Int>()
-    val eventsFile = File("fuzz-results/events.csv").apply { bufferedWriter().write("") }
+    var events = mutableListOf<Byte>()
+    val eventsFile = File("fuzz-results/events.bin").apply { bufferedWriter().write("") }
     override fun displayStats(force: kotlin.Boolean) {
 //        super.displayStats(force)
     }
@@ -36,7 +37,7 @@ class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?
 
     override fun handleEvent(e: TraceEvent?) {
         if(e is BranchEvent)
-            events.add(e.iid)
+            events.add(e.iid.toByte())
         super.handleEvent(e)
     }
 
@@ -44,11 +45,9 @@ class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?
 //        println("total events for input ${this.numTrials}: ${events.size}")
 //        events.toList().filterIsInstance<BranchEvent>().take(40).forEach { print(hash(it.iid.toString())+" ") }
 //        println()
-        val st = FileOutputStream(eventsFile, true)
-        val intEvents = events.toList().toIntArray()
-        val dst= DataOutputStream(st)
-        dst.writeInt(intEvents.size)
-        intEvents.forEach { dst.writeInt(it)}
+        BufferedOutputStream(FileOutputStream(eventsFile, true))
+            .use { it.write(events.toList().toByteArray()) }
+
 
         events = mutableListOf()
         super.handleResult(result, error)
