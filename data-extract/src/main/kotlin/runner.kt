@@ -16,13 +16,16 @@ import java.time.Duration
 import java.util.*
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import kotlin.collections.HashMap
 import kotlin.system.exitProcess
+
 
 class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?) :
     ZestGuidance(testName, duration, outputDirectory) {
     private var events = mutableListOf<Int>()
     private val eventsFile = File("fuzz-results/events.bin").apply { bufferedWriter().write("") }
     private val executor = Executors.newSingleThreadExecutor()
+    private val iidMap = mutableMapOf<Int,Int>()
 
     override fun displayStats(force: kotlin.Boolean) {
 //        super.displayStats(force)
@@ -37,7 +40,7 @@ class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?
     }
 
     override fun handleEvent(e: TraceEvent?) {
-        if (e is BranchEvent) events.add(e.iid)
+        if (e is BranchEvent) events.add(iidMap.getOrPut(e.iid) { iidMap.size })
         super.handleEvent(e)
     }
 
@@ -45,8 +48,8 @@ class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?
         val eventList = events.toList()
         executor.execute {
             DataOutputStream(BufferedOutputStream(FileOutputStream(eventsFile, true))).also { dst ->
-                dst.writeInt(eventList.size)
-                eventList.forEach(dst::writeInt)
+                dst.writeShort(eventList.size)
+                eventList.forEach(dst::writeShort)
             }
         }
 
@@ -58,7 +61,10 @@ class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?
             executor.shutdown()
             executor.awaitTermination(1000, TimeUnit.MINUTES)
             println("Finished $numTrials trials")
+            println("Total number of IDs ${iidMap.size}")
             println("Time consumed ${"%.2f".format((Date().time - startTime.time) / 1000.0)}s")
+            if (iidMap.size.toShort().toInt() != iidMap.size)
+                error("To many IDs, change code back to Integer ids")
             exitProcess(0)
         }
     }
