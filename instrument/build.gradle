@@ -14,6 +14,10 @@ dependencies {
     api 'org.ow2.asm:asm:9.1'
 }
 
+tasks.register('copyDependencies', Copy) {
+    from configurations.runtimeClasspath
+    into 'build/dependency'
+}
 tasks {
     jar {
         manifest {
@@ -22,10 +26,7 @@ tasks {
             attributes 'Can-Retransform-Classes': true
         }
     }
-}
-tasks.register('copyDependencies', Copy) {
-    from configurations.runtimeClasspath
-            into 'build/dependency'
+    jar.dependsOn(copyDependencies)
 }
 
 description = 'jqf-instrument'
