@@ -2,7 +2,6 @@ import edu.berkeley.cs.jqf.fuzz.ei.ZestDriver
 import edu.berkeley.cs.jqf.fuzz.ei.ZestGuidance
 import edu.berkeley.cs.jqf.fuzz.guidance.Result
 import edu.berkeley.cs.jqf.fuzz.junit.GuidedFuzzing
-import edu.berkeley.cs.jqf.fuzz.util.ICoverage
 import edu.berkeley.cs.jqf.instrument.tracing.events.BranchEvent
 import edu.berkeley.cs.jqf.instrument.tracing.events.TraceEvent
 import org.eclipse.collections.impl.set.mutable.primitive.IntHashSet
@@ -11,12 +10,10 @@ import java.io.DataOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
-import java.io.InputStream
 import java.time.Duration
 import java.util.*
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
-import kotlin.collections.HashMap
 import kotlin.system.exitProcess
 
 
@@ -24,23 +21,39 @@ class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?
     ZestGuidance(testName, duration, outputDirectory) {
     private var events = mutableListOf<Int>()
     private val eventsFile = File("fuzz-results/events.bin").apply { bufferedWriter().write("") }
+    private val idsFile = File("fuzz-results/ids.csv").apply { bufferedWriter().write("") }
     private val executor = Executors.newSingleThreadExecutor()
-    private val iidMap = mutableMapOf<Int,Int>()
+    private val iidMap = mutableMapOf<Int, Int>()
 
     override fun displayStats(force: kotlin.Boolean) {
 //        super.displayStats(force)
     }
 
-    override fun getTotalCoverage(): ICoverage<*> {
-        return super.getTotalCoverage()
-    }
-
-    override fun getInput(): InputStream {
-        return super.getInput()
-    }
-
     override fun handleEvent(e: TraceEvent?) {
-        if (e is BranchEvent) events.add(iidMap.getOrPut(e.iid) { iidMap.size })
+        if (e is BranchEvent) {
+            events.add(iidMap.getOrPut(e.iid) {
+                let {
+                    val newID = iidMap.size
+
+                    // for each new ID print the whole mapping to a file
+                    FileOutputStream(idsFile, true).bufferedWriter().apply {
+                        write(
+                            listOf(
+                                newID,
+                                e.containingClass,
+                                e.containingMethodName,
+                                e.containingMethodDesc,
+                                e.lineNumber
+                            ).joinToString("\t")
+                        )
+                        newLine()
+                        flush()
+                    }
+
+                    newID
+                }
+            })
+        }
         super.handleEvent(e)
     }
 
@@ -58,10 +71,15 @@ class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?
         super.handleResult(result, error)
         val maxAllowedInputs = 50000
 
+        when {
+            (numTrials % 10000 == 0L) -> print(numTrials)
+            (numTrials % 5000 == 0L) -> print(",")
+            (numTrials % 1000 == 0L) -> print('.')
+        }
+
         if (numTrials >= maxAllowedInputs) {
             executor.shutdown()
             executor.awaitTermination(1000, TimeUnit.MINUTES)
-            println("Finished $numTrials trials")
             println("Total number of IDs ${iidMap.size}")
             println("Time consumed ${"%.2f".format((Date().time - startTime.time) / 1000.0)}s")
             if (iidMap.size.toShort().toInt() != iidMap.size)
