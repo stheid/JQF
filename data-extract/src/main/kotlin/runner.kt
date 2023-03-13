@@ -80,8 +80,10 @@ class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?
         if (numTrials >= maxAllowedInputs) {
             executor.shutdown()
             executor.awaitTermination(1000, TimeUnit.MINUTES)
+            println()
             println("Total number of IDs ${iidMap.size}")
-            println("Time consumed ${"%.2f".format((Date().time - startTime.time) / 1000.0)}s")
+            val duration = (Date().time - startTime.time) / 1000.0
+            println("Time consumed ${"%.2f".format(duration)}s, ${"%.2f".format(numTrials/duration)} inputs/s")
             if (iidMap.size.toShort().toInt() != iidMap.size)
                 error("To many IDs, change code back to Integer ids")
             exitProcess(0)
