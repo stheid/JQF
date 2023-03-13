@@ -48,8 +48,9 @@ class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?
         val eventList = events.toList()
         executor.execute {
             DataOutputStream(BufferedOutputStream(FileOutputStream(eventsFile, true))).also { dst ->
-                dst.writeShort(eventList.size)
+                dst.writeInt(eventList.size)
                 eventList.forEach(dst::writeShort)
+                dst.flush()
             }
         }
 
