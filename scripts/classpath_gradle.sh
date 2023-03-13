@@ -14,5 +14,7 @@ cp="$ROOT_DIR/fuzz/build/classes/java/main:$ROOT_DIR/fuzz/build/classes/java/tes
 for jar in $ROOT_DIR/fuzz/build/libs/*.jar; do
   cp="$cp:$jar"
 done
-
+for jar in $ROOT_DIR/data-extract/build/libs/*.jar; do
+  cp="$cp:$jar"
+done
 echo $cp
