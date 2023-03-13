@@ -4,6 +4,7 @@
 
 plugins {
     id 'edu.berkeley.cs.jqf.java-conventions'
+    id 'com.github.johnrengelman.shadow' version '7.1.2'
 }
 
 dependencies {
@@ -18,4 +19,24 @@ dependencies {
     testImplementation 'org.hamcrest:hamcrest-library:1.3'
 }
 
+
+tasks {
+    jar {
+        dependsOn(shadowJar)
+    }
+
+    test {
+        exclude 'edu/berkeley/cs/jqf/fuzz/guidance/**'
+    }
+
+    shadowJar {
+        manifest {
+            attributes["Main-Class"] = "edu.berkeley.cs.jqf.fuzz.ei.ZestCLI"
+        }
+        archiveFileName.set("zest-cli.jar")
+        exclude("META-INF/maven/**")
+        exclude("META-INF/LICENSE*")
+        exclude("META-INF/NOTICE*")
+    }
+}
 description = 'jqf-fuzz'
