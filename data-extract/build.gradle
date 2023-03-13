@@ -1,6 +1,7 @@
 plugins {
     id 'edu.berkeley.cs.jqf.java-conventions'
     id 'org.jetbrains.kotlin.jvm' version '1.8.20-Beta'
+    id 'com.github.johnrengelman.shadow' version '7.1.2'
 }
 
 
@@ -24,6 +25,9 @@ dependencies {
     //implementation project(':jqf-instrument')
     runtimeOnly project(":jqf-examples")
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
+}
+
+shadowJar {
 }
 
 description = 'data-extract'

@@ -1,8 +1,6 @@
 import edu.berkeley.cs.jqf.fuzz.afl.AFLDriver
 import edu.berkeley.cs.jqf.fuzz.afl.AFLGuidance
 import edu.berkeley.cs.jqf.fuzz.junit.GuidedFuzzing
-import java.io.File
-import java.time.Duration
 import kotlin.system.exitProcess
 
 
@@ -13,9 +11,6 @@ class MeasureAFL(inputFileName: String, inPipeName: String, outPipeName: String)
 
 
 fun main(args: Array<String>) {
-    // wait for the JVM to be completely ready with javaagent and so on
-    Thread.sleep(1_000)
-
     if (args.size != 5) {
         System.err.println("Usage: java " + AFLDriver::class.java + " TEST_CLASS TEST_METHOD TEST_INPUT_FILE AFL_TO_JAVA_PIPE JAVA_TO_AFL_PIPE")
         exitProcess(1)

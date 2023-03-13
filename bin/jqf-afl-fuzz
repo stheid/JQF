@@ -129,7 +129,7 @@ fi
 
 class="$1"
 method="$2"
-target="$BIN_DIR/jqf-afl-target"
+target="$BIN_DIR/jqf-afl-target-2"
 
 # Set title banner
 if [ -z "$title" ]; then
