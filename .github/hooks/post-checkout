@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# Change to the submodule directory
+cd afl/
+
+# Build the submodule using the Makefile
+make
+
+# Change back to the parent directory
+cd ..
