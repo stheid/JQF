@@ -5,7 +5,7 @@ git submodule init
 git submodule update
 
 # Change to the submodule directory
-cd afl
+cd ../../afl
 
 # Build the submodule using the Makefile
 make
