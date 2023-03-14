@@ -35,4 +35,10 @@ dependencies {
 }
 shadowJar {
 }
+
+tasks {
+    test {
+        exclude 'edu/berkeley/cs/jqf/examples/**'
+    }
+}
 description = 'jqf-examples'
