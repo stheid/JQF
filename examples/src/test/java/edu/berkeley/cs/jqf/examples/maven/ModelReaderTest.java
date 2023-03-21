@@ -31,6 +31,9 @@ package edu.berkeley.cs.jqf.examples.maven;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 
 import com.pholser.junit.quickcheck.From;
 import com.pholser.junit.quickcheck.generator.Size;
@@ -42,14 +45,18 @@ import edu.berkeley.cs.jqf.fuzz.JQF;
 import org.apache.maven.model.Model;
 import org.apache.maven.model.io.DefaultModelReader;
 import org.apache.maven.model.io.ModelReader;
-import org.junit.Assert;
-import org.junit.Assume;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.runner.RunWith;
 import org.w3c.dom.Document;
 
 @RunWith(JQF.class)
 public class ModelReaderTest {
+    public static int a = 0;
+
+    @BeforeClass
+    public static void setup(){
+        a = 0;
+    }
 
     @Fuzz
     public void testWithInputStream(InputStream in) {
@@ -86,5 +93,27 @@ public class ModelReaderTest {
     public void testSmall() throws IOException {
         testWithString("<Y");
     }
+    @Fuzz
+    public void saveWithGenerator(@From(XmlDocumentGenerator.class)
+                                      @Size(min = 0, max = 10)
+                                      @Dictionary("dictionaries/maven-model.dict") Document dom) {
+        testWithGenerator(dom);
 
+        String xmldom = XMLDocumentUtils.documentToString(dom);
+        try{
+            File xmlFile = new File("fuzz-results/xmlCorpus/"+a+".xml");
+
+            // If the file doesn't exist, create it
+            if (!xmlFile.exists()) {
+                xmlFile.createNewFile();
+            }
+
+            FileWriter writer = new FileWriter(xmlFile);
+            writer.write(xmldom);
+            writer.close();
+            a = a + 1;
+        } catch (IOException e){
+            e.printStackTrace();
+        }
+    }
 }
