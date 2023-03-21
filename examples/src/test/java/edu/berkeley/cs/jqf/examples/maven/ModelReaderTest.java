@@ -93,21 +93,28 @@ public class ModelReaderTest {
     public void testSmall() throws IOException {
         testWithString("<Y");
     }
-
     @Fuzz
     public void saveWithGenerator(@From(XmlDocumentGenerator.class)
-                                  @Size(min = 0, max = 10)
-                                  @Dictionary("dictionaries/maven-model.dict") Document dom) {
+                                      @Size(min = 0, max = 10)
+                                      @Dictionary("dictionaries/maven-model.dict") Document dom) {
+        testWithGenerator(dom);
+
         String xmldom = XMLDocumentUtils.documentToString(dom);
-        try {
-            File xmlFile = new File("fuzz-results/xmlCorpus/" + a + ".xml");
+        try{
+            File xmlFile = new File("fuzz-results/xmlCorpus/"+a+".xml");
+
+
+            // If the file doesn't exist, create it
+            if (!xmlFile.exists()) {
+                xmlFile.createNewFile();
+            }
+
             FileWriter writer = new FileWriter(xmlFile);
             writer.write(xmldom);
             writer.close();
             a = a + 1;
-        } catch (IOException e) {
+        } catch (IOException e){
             e.printStackTrace();
         }
-        testWithGenerator(dom);
     }
 }
