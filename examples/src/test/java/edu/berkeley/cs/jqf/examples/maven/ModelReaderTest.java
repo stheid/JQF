@@ -54,7 +54,7 @@ public class ModelReaderTest {
     public static int a = 0;
 
     @BeforeClass
-    public static void setup(){
+    public static void setup() {
         a = 0;
     }
 
@@ -71,15 +71,15 @@ public class ModelReaderTest {
 
     @Fuzz
     public void testWithGenerator(@From(XmlDocumentGenerator.class)
-                                      @Size(min = 0, max = 10)
-                                      @Dictionary("dictionaries/maven-model.dict") Document dom) {
+                                  @Size(min = 0, max = 10)
+                                  @Dictionary("dictionaries/maven-model.dict") Document dom) {
         testWithInputStream(XMLDocumentUtils.documentToInputStream(dom));
     }
 
     @Fuzz
     public void debugWithGenerator(@From(XmlDocumentGenerator.class)
-                                       @Size(min = 0, max = 10)
-                                       @Dictionary("dictionaries/maven-model.dict") Document dom) {
+                                   @Size(min = 0, max = 10)
+                                   @Dictionary("dictionaries/maven-model.dict") Document dom) {
         System.out.println(XMLDocumentUtils.documentToString(dom));
         testWithGenerator(dom);
     }
@@ -93,27 +93,21 @@ public class ModelReaderTest {
     public void testSmall() throws IOException {
         testWithString("<Y");
     }
+
     @Fuzz
     public void saveWithGenerator(@From(XmlDocumentGenerator.class)
-                                      @Size(min = 0, max = 10)
-                                      @Dictionary("dictionaries/maven-model.dict") Document dom) {
-        testWithGenerator(dom);
-
+                                  @Size(min = 0, max = 10)
+                                  @Dictionary("dictionaries/maven-model.dict") Document dom) {
         String xmldom = XMLDocumentUtils.documentToString(dom);
-        try{
-            File xmlFile = new File("fuzz-results/xmlCorpus/"+a+".xml");
-
-            // If the file doesn't exist, create it
-            if (!xmlFile.exists()) {
-                xmlFile.createNewFile();
-            }
-
+        try {
+            File xmlFile = new File("fuzz-results/xmlCorpus/" + a + ".xml");
             FileWriter writer = new FileWriter(xmlFile);
             writer.write(xmldom);
             writer.close();
             a = a + 1;
-        } catch (IOException e){
+        } catch (IOException e) {
             e.printStackTrace();
         }
+        testWithGenerator(dom);
     }
 }
