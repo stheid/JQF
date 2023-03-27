@@ -11,4 +11,5 @@ project(":jqf-maven-plugin").projectDir = file('maven-plugin')
 project(":jqf-instrument").projectDir = file('instrument')
 project(":jqf-fuzz").projectDir = file('fuzz')
 project(":data-extract")
+include 'scratch'
 
