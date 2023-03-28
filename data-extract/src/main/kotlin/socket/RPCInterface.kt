@@ -10,7 +10,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 class RPCInterface(sock: String = "/tmp/jqf.sock") {
-    private val version = "1.0"
+    private val version = "0.2"
 
     private var channel: SocketChannel
 
@@ -26,10 +26,11 @@ class RPCInterface(sock: String = "/tmp/jqf.sock") {
             println("accepted connection")
         }
 
-        getVersion().also { if (it != version) error("client version ($it) does not match server version ($version)") }
+        getVersion().also { if (it != version) error("VERSION MISSMATCH: client version ($it) does not match server version ($version)") }
     }
 
-    private fun getVersion() = get("version")
+    fun getVersion() = get("version")
+    fun prepare(data: List<ByteArray>) = post("pretrain", data)
 
     private fun get(key: String): String {
         write(key)
@@ -85,5 +86,6 @@ class RPCInterface(sock: String = "/tmp/jqf.sock") {
 }
 
 fun main() {
-    RPCInterface()
+    val remote = RPCInterface()
+    remote.prepare(listOf("ich","bin","ein","keks").map { it.toByteArray() })
 }
