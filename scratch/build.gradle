@@ -3,7 +3,7 @@ plugins {
 }
 
 sourceCompatibility = 16
-targetCompatibility = 8
+targetCompatibility = 17
 
 repositories {
     mavenCentral()
