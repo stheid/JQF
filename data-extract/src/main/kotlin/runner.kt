@@ -22,6 +22,7 @@ class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?
     private var events = mutableListOf<Int>()
     private val eventsFile = File("fuzz-results/events.bin").apply { bufferedWriter().write("") }
     private val idsFile = File("fuzz-results/ids.csv").apply { bufferedWriter().write("") }
+    private val totalCovFile = File("fuzz-results/total_coverage.csv").apply { bufferedWriter().write("") }
     private val executor = Executors.newSingleThreadExecutor()
     private val iidMap = mutableMapOf<Int, Int>()
 
@@ -58,6 +59,7 @@ class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?
     }
 
     override fun handleResult(result: Result?, error: Throwable?) {
+        val maxAllowedInputs = 500000
         val eventList = events.toList()
         executor.execute {
             DataOutputStream(BufferedOutputStream(FileOutputStream(eventsFile, true))).also { dst ->
@@ -65,11 +67,15 @@ class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?
                 eventList.forEach(dst::writeShort)
                 dst.flush()
             }
+            FileOutputStream(totalCovFile, true).bufferedWriter().use{ out ->
+                val tc = getTotalCoverage()
+                out.write((tc.nonZeroCount * 100.0 / tc.size()).toString())
+                out.newLine()
+            }
         }
 
         events = mutableListOf()
         super.handleResult(result, error)
-        val maxAllowedInputs = 50000
 
         when {
             (numTrials % 10000 == 0L) -> print(numTrials)
@@ -90,9 +96,9 @@ class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?
         }
     }
 
-    override fun checkSavingCriteriaSatisfied(result: Result?): List<String> {
-        return super.checkSavingCriteriaSatisfied(result).apply { add("dumpall") }
-    }
+//    override fun checkSavingCriteriaSatisfied(result: Result?): List<String> {
+//        return super.checkSavingCriteriaSatisfied(result).apply { add("dumpall") }
+//    }
 
     @Throws(IOException::class)
     override fun saveCurrentInput(responsibilities: IntHashSet, why: String?) {

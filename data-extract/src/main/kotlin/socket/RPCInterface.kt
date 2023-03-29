@@ -9,9 +9,7 @@ import java.nio.channels.SocketChannel
 import java.nio.file.Files
 import java.nio.file.Path
 
-class RPCInterface(sock: String = "/tmp/jqf.sock") {
-    private val version = "0.2"
-
+class RPCInterface(sock: String = "/tmp/jqf.sock", process: ProcessBuilder) {
     private var channel: SocketChannel
 
     init {
@@ -20,31 +18,34 @@ class RPCInterface(sock: String = "/tmp/jqf.sock") {
 
         ServerSocketChannel.open(StandardProtocolFamily.UNIX).apply {
             bind(UnixDomainSocketAddress.of(socketFile))
-            println("bound socket")
+            println("Created socket and accepting connections")
             configureBlocking(true)
+
+            // start python client
+            process.start()
+            println("started client")
+
             channel = accept()
             println("accepted connection")
         }
-
-        getVersion().also { if (it != version) error("VERSION MISSMATCH: client version ($it) does not match server version ($version)") }
     }
 
-    fun getVersion() = get("version")
-    fun prepare(data: List<ByteArray>) = post("pretrain", data)
-
-    private fun get(key: String): String {
+    fun get(key: String): ByteArray {
         write(key)
-        val res = read()
+        val res = readByteArray()
         println("$key -> $res")
         return res
     }
 
-    private fun post(key: String, data: List<ByteArray>) {
+    fun post(key: String, vararg data: List<ByteArray>) {
         write(key)
         writeInt(data.size)
-        data.forEach {
-            writeByteArray(it)
-        }
+        data.forEach { it.forEach { it_ -> writeByteArray(it_) } }
+    }
+
+    fun postInt(key: String, int:Int) {
+        write(key)
+        writeInt(int)
     }
 
 
@@ -64,10 +65,7 @@ class RPCInterface(sock: String = "/tmp/jqf.sock") {
         channel.write(buffer)
     }
 
-    private fun write(key: String) {
-        writeByteArray(key.toByteArray(Charsets.UTF_8))
-    }
-
+    private fun write(key: String) = writeByteArray(key.toByteArray(Charsets.UTF_8))
 
     private fun readInt(): Int {
         val buffer = ByteBuffer.allocate(4)
@@ -76,16 +74,10 @@ class RPCInterface(sock: String = "/tmp/jqf.sock") {
         return buffer.rewind().int
     }
 
-    private fun read(): String {
+    private fun readByteArray(): ByteArray {
         val buffer = ByteBuffer.allocate(readInt())
         val bytes = ByteArray(channel.read(buffer))
         buffer.flip()[bytes]
-        return bytes.toString(Charsets.UTF_8)
+        return bytes
     }
-
-}
-
-fun main() {
-    val remote = RPCInterface()
-    remote.prepare(listOf("ich","bin","ein","keks").map { it.toByteArray() })
 }

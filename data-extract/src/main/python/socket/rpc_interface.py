@@ -5,7 +5,7 @@ import struct
 from inspect import getfullargspec
 
 
-class RPCInterface():
+class RPCInterface:
     instance = None
 
     def __init__(self, sock="/tmp/jqf.sock"):
@@ -17,7 +17,6 @@ class RPCInterface():
         def decorator(func):
             @functools.wraps(func)
             def wrapper():
-
                 params = []
                 for _ in getfullargspec(func).args:
                     # get length
@@ -47,6 +46,8 @@ class RPCInterface():
                     self.funcs[func]()
                 except struct.error:
                     break
+                except KeyError as e:
+                    print("The function", e.args[0], "does not exist")
 
     def write(self, msg):
         input_ = msg.encode("utf-8")
@@ -56,21 +57,4 @@ class RPCInterface():
         return unpack('I', self.socket.recv(4))[0]
 
     def read(self):
-        return self.socket.recv(self.read_int()).decode()
-
-
-if __name__ == '__main__':
-    remote = RPCInterface()
-
-
-    @remote.register("version")
-    def send_version():
-        return "0.2"
-
-
-    @remote.register("pretrain")
-    def pretrain(data):
-        print(data)
-
-
-    remote.run()
+        return self.socket.recv(self.read_int())
