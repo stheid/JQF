@@ -27,7 +27,7 @@ class RPCInterface:
             def wrapper(self_, *args):
                 logger.debug(f"calling {name}")
                 if args:
-                    return func(*args)
+                    return func(self_, *args)
                 params = []
                 spec = getfullargspec(func)
                 for arg in spec.args:

@@ -70,13 +70,16 @@ class TransformerFuzzer(BaseFuzzer):
 
     @remote.register("geninput")
     def create_inputs(self) -> List[bytes]:
-        batch = []
+        result: List[bytes] = []
         # 1. sample candidates
+        if len(self.train_data) == 0:
+            raise Exception("No training data available, cannot create inputs. Pre-train first!")
         mask = np.random.choice(len(self.train_data), self.model.batch_size, replace=False)
-        # for inputs, target in self.train_data.take[mask]:
-        #     mutated_seq = self._mutate(inputs["encoder_inputs"])
+        for seq in self.train_data.X[mask]:
+            mutated_seq = self._mutate(seq)
+            result.append(mutated_seq)
 
-        pass
+        return result
 
     def _mutate(self, seqs):
         return seqs
@@ -134,6 +137,7 @@ if __name__ == '__main__':
     # test- pretrain
     seqs, files = load_jqf("/home/ajrox/Programs/pylibfuzzer/examples/transformer_jqf/data/fuzz-results/")
     gen.pretrain(seqs, files)
+    new_inputs = gen.create_inputs()
     print("")
 
     # create
