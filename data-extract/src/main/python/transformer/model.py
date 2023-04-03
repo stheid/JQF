@@ -1,4 +1,3 @@
-import random
 import struct
 from typing import List, Tuple
 import logging
@@ -8,8 +7,8 @@ from more_itertools import flatten
 from tensorflow.keras import layers
 import tensorflow.keras as keras
 
-from python.transformer.dataset import Dataset
-from python.transformer.layers import *
+from transformer.dataset import Dataset
+from transformer.layers import *
 
 logger = logging.getLogger(__name__)
 

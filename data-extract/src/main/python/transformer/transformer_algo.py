@@ -2,14 +2,10 @@ import logging
 import numpy as np
 from typing import List
 
-from h5py import Dataset
-from tqdm import trange, tqdm
-
-from python.socket.rpc_interface import RPCInterface
-from python.transformer.base import BaseFuzzer
-from python.transformer.dataset import DatasetIO
-from python.transformer.model import *
-from python.utils import remove_lsb
+from sock.rpc_interface import RPCInterface
+from transformer.base import BaseFuzzer
+from transformer.model import *
+from utils import remove_lsb
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +81,7 @@ class TransformerFuzzer(BaseFuzzer):
         # # 3. sample values (uniform)
         # values = np.random.choice(self.events, len(pos), replace=False)
 
+    @remote.register("observe")
     def observe(self, fuzzing_result: List[bytes]):
         data = Dataset(np.array([np.frombuffer(b, dtype=np.uint8) for b in self.batch]),
                        np.array(fuzzing_result))

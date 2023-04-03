@@ -42,7 +42,8 @@ class RPCInterface:
             self.socket.connect(self.addr)
             while True:
                 try:
-                    func = self.read()
+                    func = self.read().decode()
+                    print("calling", func)
                     self.funcs[func]()
                 except struct.error:
                     break

@@ -48,7 +48,6 @@ class RPCInterface(sock: String = "/tmp/jqf.sock", process: ProcessBuilder) {
         writeInt(int)
     }
 
-
     private fun writeInt(int: Int) {
         val buffer = ByteBuffer.allocate(4)
         buffer.order(ByteOrder.LITTLE_ENDIAN)
