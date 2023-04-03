@@ -16,7 +16,9 @@ class RPCInterface:
     def register(self, name):
         def decorator(func):
             @functools.wraps(func)
-            def wrapper():
+            def wrapper(*args):
+                if args:
+                    return func(*args)
                 params = []
                 for _ in getfullargspec(func).args:
                     # get length
@@ -28,6 +30,7 @@ class RPCInterface:
                     self.write(res)
 
             self.funcs[name or func.__name__] = wrapper
+            return wrapper
 
         # noinspection PyTypeChecker
         if callable(name) and hasattr(name, "__name__"):

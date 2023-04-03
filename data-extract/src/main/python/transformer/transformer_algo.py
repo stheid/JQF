@@ -5,7 +5,10 @@ from typing import List
 from sock.rpc_interface import RPCInterface
 from transformer.base import BaseFuzzer
 from transformer.model import *
-from utils import remove_lsb
+from utils import remove_lsb, load_jqf
+
+from transformer.dataset import Dataset
+from transformer.model import TransformerModel
 
 logger = logging.getLogger(__name__)
 
@@ -43,14 +46,14 @@ class TransformerFuzzer(BaseFuzzer):
         self.events = n
 
     @remote.register("pretrain")
-    def pretrain(self, files: List[bytes], seqs: List[bytes]):
+    def pretrain(self, seqs: List[bytes], files: List[bytes]):
         """
         :param files: List of input files as bytes, represents output to the model
         :param seqs: represents input to the model as sequences of events
         :return: None
         """
         # todo: use Dataset() to store and split train and val data
-
+        self.train_data, self.val_data = Dataset(X=np.array(seqs), y=np.array(files)).split()
         # prepare training and validation data from the data through the socket
         # Initialize model and update train and val data for training
         if not self.model.is_model_created:
@@ -66,8 +69,8 @@ class TransformerFuzzer(BaseFuzzer):
         batch = []
         # 1. sample candidates
         mask = np.random.choice(len(self.train_data), self.model.batch_size, replace=False)
-        for inputs, target in self.train_data.take[mask]:
-            mutated_seq = self._mutate(inputs["encoder_inputs"])
+        # for inputs, target in self.train_data.take[mask]:
+        #     mutated_seq = self._mutate(inputs["encoder_inputs"])
 
         pass
 
@@ -122,6 +125,13 @@ class TransformerFuzzer(BaseFuzzer):
 
 
 if __name__ == '__main__':
-    gen = TransformerFuzzer(max_input_len=500, epochs=10, exp=6, vocab_size=100, sequence_length=20,
+    gen = TransformerFuzzer(max_input_len=500, epochs=1, exp=6, vocab_size=100, sequence_length=20,
                             batch_size=64, embed_dim=256, latent_dim=2048, num_heads=8)
-    remote.run()
+    # test- pretrain
+    seqs, files = load_jqf("/home/ajrox/Programs/pylibfuzzer/examples/transformer_jqf/data/fuzz-results/")
+    gen.pretrain(seqs, files)
+    print("")
+
+    # create
+    print("")
+    # remote.run()

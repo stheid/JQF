@@ -11,11 +11,11 @@ class Dataset:
         if X is None and y is None:
             self.X = np.array([])
             self.y = np.array([])
-        elif len(X.shape) == 2 and len(y.shape) == 2:
+        elif len(X.shape) == 1 and len(y.shape) == 1:
             self.X = X
             self.y = y
         else:
-            raise RuntimeError(f"X and y should be always 2 dimensional, but found: X.shape: {X.shape}, y.shape: "
+            raise RuntimeError(f"X and y should be always 1 dimensional, but found: X.shape: {X.shape}, y.shape: "
                                f"{y.shape}")
         self.max_size = max_size
         self.new_sw = new_sw  # sample weights
@@ -25,7 +25,7 @@ class Dataset:
             self.weights = np.array([])
 
     def __getitem__(self, value: Tuple):
-        return Dataset(self.X[value, :], self.y[value, :], max_size=self.max_size,
+        return Dataset(self.X[value], self.y[value], max_size=self.max_size,
                        new_sw=self.new_sw, weights=None)
 
     def __iadd__(self, other):
@@ -57,11 +57,11 @@ class Dataset:
 
     @property
     def xdim(self):
-        return self.X.shape[1]
+        return self.X.shape[0]
 
     @property
     def ydim(self):
-        return self.y.shape[1]
+        return self.y.shape[0]
 
     def split(self, frac=.8):
         if self.is_empty:

@@ -2,6 +2,7 @@ import struct
 from typing import List, Tuple
 import logging
 import numpy as np
+import tensorflow as tf
 from keras.layers import TextVectorization
 from more_itertools import flatten
 from tensorflow.keras import layers
@@ -59,9 +60,9 @@ class TransformerModel:
     def is_model_created(self):
         return self.transformer is not None
 
-    def train(self, data: Dataset, val_data: Dataset, epochs, pretrain=True):
-        train = self.preprocess_data_transformer(*data, pretrain=pretrain)
-        val = self.preprocess_data_transformer(*val_data)
+    def train(self, data: Dataset, val_data: Dataset, epochs, pre_train=True):
+        train = self.preprocess_data_transformer(data, pretrain=pre_train)
+        val = self.preprocess_data_transformer(val_data)
         self.transformer.fit(train, epochs=epochs, validation_data=val)
 
     def predict(self, seq) -> bytes:
@@ -87,7 +88,9 @@ class TransformerModel:
             if sampled_token == "[end]":
                 break
 
-    def preprocess_data_transformer(self, seqs, docs, pretrain: bool = False) -> tf.data.Dataset:
+    def preprocess_data_transformer(self, data: Dataset, pretrain: bool = False) -> tf.data.Dataset:
+        seqs = data.X
+        docs = data.y
         data_pair = self.bytes_to_str(seqs, docs)
         text_pairs = []
         for inp, out in data_pair:
@@ -116,10 +119,10 @@ class TransformerModel:
 
         train_ds = make_dataset(text_pairs)
 
-        for inputs, targets in train_ds.take(1):
-            print(f'inputs["encoder_inputs"].shape: {inputs["encoder_inputs"].shape}')
-            print(f'inputs["decoder_inputs"].shape: {inputs["decoder_inputs"].shape}')
-            print(f"targets.shape: {targets.shape}")
+        # for inputs, targets in train_ds.take(1):
+        #     print(f'inputs["encoder_inputs"].shape: {inputs["encoder_inputs"].shape}')
+        #     print(f'inputs["decoder_inputs"].shape: {inputs["decoder_inputs"].shape}')
+        #     print(f"targets.shape: {targets.shape}")
 
         return train_ds
 
@@ -131,10 +134,10 @@ class TransformerModel:
         for i, o in zip(inputs, outputs):
             _in.append(" ".join(map(str, flatten(struct.iter_unpack(">h", i)))))  # events.bin
             _out.append(" ".join(map(str, flatten(struct.iter_unpack(">B", o)))))  # corpus/
-
-        print(_in[0])
-        print(len(_in))
-        print(_out[0])
-        print(len(_out))
+        #
+        # print(_in[0])
+        # print(len(_in))
+        # print(_out[0])
+        # print(len(_out))
 
         return list(zip(_in, _out))

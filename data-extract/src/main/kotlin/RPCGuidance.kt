@@ -85,7 +85,7 @@ fun main(args: Array<String>) {
         System.err.println("Usage: java " + ZestDriver::class.java + "TEST_CLASS TEST_METHOD")
         exitProcess(1)
     }
-
+    val pythoninter = System.getenv("PYTHONINTER") ?: "python"
     val testClassName = args[0]
     val testMethodName = args[1]
     val outputDirectory = File("fuzz-results")
@@ -96,8 +96,8 @@ fun main(args: Array<String>) {
         val guidance = ZestGuidance(title, null, outputDirectory)
         val dir = File("data-extract/src/main/python")
         val rpcGuidance = RPCGuidance(
-            ProcessBuilder("python", "transformer/transformer_algo.py")
-                .directory(dir).inheritIO().apply { environment()["PYTHONPATH"] = dir.absolutePath }, guidance
+            ProcessBuilder(pythoninter, "transformer/transformer_algo.py")
+                .directory(dir).inheritIO().apply { environment()["PYTHONPATH"] = dir.absolutePath}, guidance
         )
 
         // Run the Junit test
