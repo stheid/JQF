@@ -11,6 +11,8 @@ from transformer.dataset import Dataset
 from transformer.model import TransformerModel
 
 logger = logging.getLogger(__name__)
+logging.getLogger().setLevel(logging.DEBUG)
+
 
 remote = RPCInterface()
 
@@ -40,9 +42,11 @@ class TransformerFuzzer(BaseFuzzer):
         # uint8, float32, samples×width
         self.train_data = Dataset()
         self.val_data = Dataset()
+        remote.obj = self
 
     @remote.register("totalevents")
     def get_total_events(self, n: int):
+        print("total events", n)
         self.events = n
 
     @remote.register("pretrain")

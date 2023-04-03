@@ -16,10 +16,10 @@ import kotlin.system.exitProcess
 class RPCGuidance(
     process: ProcessBuilder,
     private val warmupGuidance: Guidance?,
-    private val warmupInputs: Int = 10_000
+    private val warmupInputs: Long = 1_00L
 ) : Guidance {
 
-    private var nInputs = 0
+    private var nInputs = 0L
 
     // TODO call python process correctly
     private val socket = RPCInterface(process = process)
@@ -35,7 +35,18 @@ class RPCGuidance(
     override fun getInput(): InputStream {
         // pull data from warmup guidance or from the socket
         val arr = if (warmupRequired)
-            warmupGuidance!!.input.readAllBytes().also { warmupFiles.add(it) }
+            (warmupGuidance!!.input).run {
+                val bytes = mutableListOf<Int>()
+                while (true) {
+                    try {
+                        bytes.add(this.read())
+                    } catch (_: IllegalStateException) {
+                        break
+                    }
+                }
+
+                bytes.map { it.toByte() }.toByteArray()
+            }.also { warmupFiles.add(it) }
         else
         // TODO deal properly with batches
             socket.get("geninput")
@@ -46,6 +57,13 @@ class RPCGuidance(
     override fun hasInput() = true
 
     override fun handleResult(result: Result?, error: Throwable?) {
+        nInputs += 1
+        when {
+            (nInputs % 10000 == 0L) -> print("${nInputs / 1000}k")
+            (nInputs % 5000 == 0L) -> print(",")
+            (nInputs % 1000 == 0L) -> print('.')
+        }
+
         // TODO: calculate eventseq
         val eventseq = byteArrayOf()
 
@@ -63,8 +81,9 @@ class RPCGuidance(
                 warmupSeqs.add(eventseq)
             }
         }
-        // send only result to clients observe method
-        socket.post("observe", listOf(eventseq))
+        if (!warmupRequired)
+            // send only result to clients observe method
+            socket.post("observe", listOf(eventseq))
     }
 
     override fun generateCallBack(thread: Thread?): Consumer<TraceEvent> {

@@ -2,7 +2,12 @@ import functools
 from socket import socket, AF_UNIX, SOCK_STREAM
 from struct import unpack, pack
 import struct
+import logging
 from inspect import getfullargspec
+
+logging.basicConfig()
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 class RPCInterface:
@@ -12,33 +17,37 @@ class RPCInterface:
         super().__init__()
         self.addr = sock
         self.funcs = dict()
+        self.obj = None
 
-    def register(self, name):
+    def register(self, name, self_=None):
         def decorator(func):
+            logger.debug(f"registering {name}")
+
             @functools.wraps(func)
-            def wrapper(*args):
+            def wrapper(self_, *args):
+                logger.debug(f"calling {name}")
                 if args:
                     return func(*args)
                 params = []
-                for _ in getfullargspec(func).args:
-                    # get length
-                    len_ = self.read_int()
-                    # get data
-                    params.append([self.read() for _ in range(len_)])
-                res = func(*params)
+                spec = getfullargspec(func)
+                for arg in spec.args:
+                    if arg == "self":
+                        continue
+                    if spec.annotations[arg] == int:
+                        params.append(self.read_int())
+                    else:
+                        # get length
+                        len_ = self.read_int()
+                        # get data
+                        params.append([self.read() for _ in range(len_)])
+                res = func(self_, *params)
                 if res is not None:
                     self.write(res)
+                return res
 
-            self.funcs[name or func.__name__] = wrapper
+            self.funcs[name] = wrapper
             return wrapper
-
-        # noinspection PyTypeChecker
-        if callable(name) and hasattr(name, "__name__"):
-            name, f = None, name
-            # noinspection PyTypeChecker
-            decorator(f)
-        else:
-            return decorator
+        return decorator
 
     def run(self):
         with socket(AF_UNIX, SOCK_STREAM).__enter__() as self.socket:
@@ -46,8 +55,7 @@ class RPCInterface:
             while True:
                 try:
                     func = self.read().decode()
-                    print("calling", func)
-                    self.funcs[func]()
+                    self.funcs[func](self.obj)
                 except struct.error:
                     break
                 except KeyError as e:
