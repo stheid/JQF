@@ -19,6 +19,7 @@ class RPCGuidance(
 
     private var nInputs = 0L
     private val socket = RPCInterface(process = process)
+    private var currwarmupFile: ByteArray? = null
     private var warmupFiles = mutableListOf<ByteArray>()
     private var warmupSeqs = mutableListOf<ByteArray>()
     private var events = mutableListOf<Int>()
@@ -41,7 +42,12 @@ class RPCGuidance(
             }
 
             bytes.map { it.toByte() }.toByteArray()
-        }.also { warmupFiles.add(it) }
+        }.also {
+            // @FuzzStatement.evaluate() might sometimes eat away inputs because of AssumptionViolationExceptions
+            //     which will not trigger the handleResult.
+            // Therefore, we need to overrige the current file in that case and only store it inside the handleResult
+            currwarmupFile = it
+        }
         else
             socket.get("geninput")
 
@@ -58,19 +64,21 @@ class RPCGuidance(
             (nInputs % 1000 == 0L) -> print('.')
         }
 
+        // TODO convert it to bytes properly.
         val eventseq = events.map { it.toByte() }.toByteArray()
         events.clear()
 
         if (warmupGuidance != null) when (nInputs) {
             warmupInputs -> {
                 socket.post("totalevents", totalCoverage.counter.size())
-                socket.post("pretrain", warmupSeqs.apply { add(eventseq) }, warmupFiles)
+                socket.post("pretrain", warmupSeqs.apply { add(eventseq) }, warmupFiles.apply { add(currwarmupFile!!) })
                 warmupFiles.clear()
                 warmupSeqs.clear()
             }
 
             else -> {
                 // store event
+                warmupFiles.add(currwarmupFile!!)
                 warmupSeqs.add(eventseq)
             }
         }
