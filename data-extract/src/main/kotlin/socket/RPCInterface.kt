@@ -39,21 +39,20 @@ class RPCInterface(sock: String = "/tmp/jqf.sock", process: ProcessBuilder) {
 
     fun post(key: String, data: ByteArray) {
         write(key)
-        writeByteArray(data)
+        write(data)
     }
 
     fun post(key: String, vararg data: List<ByteArray>) {
         write(key)
-        writeInt(data.size)
-        data.forEach { it.forEach { it_ -> writeByteArray(it_) } }
+        data.forEach { write(it) }
     }
 
     fun post(key: String, int: Int) {
         write(key)
-        writeInt(int)
+        write(int)
     }
 
-    private fun writeInt(int: Int) {
+    private fun write(int: Int) {
         val buffer = ByteBuffer.allocate(4)
         buffer.order(ByteOrder.LITTLE_ENDIAN)
         buffer.putInt(int)
@@ -61,15 +60,20 @@ class RPCInterface(sock: String = "/tmp/jqf.sock", process: ProcessBuilder) {
         channel.write(buffer)
     }
 
-    private fun writeByteArray(payload: ByteArray) {
-        writeInt(payload.size)
+    private fun write(payload: List<ByteArray>) {
+        write(payload.size)
+        payload.forEach { write(it)}
+    }
+
+    private fun write(payload: ByteArray) {
+        write(payload.size)
         val buffer = ByteBuffer.allocate(payload.size)
         buffer.put(payload)
         buffer.rewind()
         channel.write(buffer)
     }
 
-    private fun write(key: String) = writeByteArray(key.toByteArray(Charsets.UTF_8))
+    private fun write(key: String) = write(key.toByteArray(Charsets.UTF_8))
 
     private fun readInt(): Int {
         val buffer = ByteBuffer.allocate(4)

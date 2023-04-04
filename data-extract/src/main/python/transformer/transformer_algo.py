@@ -10,9 +10,9 @@ from utils import remove_lsb, load_jqf
 from transformer.dataset import Dataset
 from transformer.model import TransformerModel
 
+logging.basicConfig()
 logger = logging.getLogger(__name__)
-logging.getLogger().setLevel(logging.DEBUG)
-
+logger.setLevel(logging.DEBUG)
 
 remote = RPCInterface()
 
@@ -27,7 +27,7 @@ class TransformerFuzzer(BaseFuzzer):
                  embed_dim=256, latent_dim=2048, num_heads=8):
         super().__init__()
         self.n_sample_candidates = n_sample_candidates
-        self.events = []
+        self.events = 100
         self.uncovered_bits = None
         self.exp = exp
         self.batch = []
@@ -46,7 +46,7 @@ class TransformerFuzzer(BaseFuzzer):
 
     @remote.register("totalevents")
     def get_total_events(self, n: int):
-        print("total events", n)
+        logger.debug(f"total events {n}")
         self.events = n
 
     @remote.register("pretrain")
@@ -57,12 +57,13 @@ class TransformerFuzzer(BaseFuzzer):
         :return: None
         """
         # todo: use Dataset() to store and split train and val data
+        logger.debug("splitting dataset")
         self.train_data, self.val_data = Dataset(X=np.array(seqs), y=np.array(files)).split()
         # prepare training and validation data from the data through the socket
         # Initialize model and update train and val data for training
         if not self.model.is_model_created:
+            logger.debug("initializing model")
             self.model.initialize_model()
-
         # train NN
         logger.info("Begin training on pre-given dataset")
         self.model.train(self.train_data, self.val_data, epochs=self.epochs)
@@ -76,20 +77,37 @@ class TransformerFuzzer(BaseFuzzer):
             raise Exception("No training data available, cannot create inputs. Pre-train first!")
         mask = np.random.choice(len(self.train_data), self.model.batch_size, replace=False)
         for seq in self.train_data.X[mask]:
-            mutated_seq = self._mutate(seq)
+            mutated_seq = self._mutate(seq, size=10, mode="sub")
             result.append(mutated_seq)
 
         return result
 
-    def _mutate(self, seqs):
+    def _mutate(self, seqs, alpha=2, beta=1, size=5, mode="sub", seq_type: int = 1):
+        """
+        :param seqs: an event with a sequence of bytes
+        :param alpha and beta: parameters to shift sampling towards left, right, up or down
+        :param size: number of samples to extract
+        :param mode: substitution, removal or addition of bytes
+        :param seq_type:  1 for int, 2 for short and so on
+        :return: a mutated sequence of bytes for a particular event
+        """
+        # todo: remove, add
+        if mode == "sub":  # Substitute
+            # sample geometric positions
+            n_pos = np.random.beta(a=alpha, b=beta, size=size % len(seqs)) * len(seqs)
+
+            # sample values (uniform)
+            values = np.random.choice(max(self.events, 1 << (seq_type * 8)), len(n_pos), replace=False)
+
+            # mutate
+            res = bytearray(seqs)
+            for pos, val in zip(n_pos, values):
+                res[int(pos)] = val
+
+            return bytes(res)
+
+        print("incorrect mode, no mutation")
         return seqs
-        # todo:
-        # # 2. sample geometric positions
-        #
-        # a = inputs["encoder_inputs"].numpy().flatten()
-        # pos = np.random.geometric(p=0.3, size=self.n_sample_positions)
-        # # 3. sample values (uniform)
-        # values = np.random.choice(self.events, len(pos), replace=False)
 
     @remote.register("observe")
     def observe(self, fuzzing_result: List[bytes]):
@@ -128,7 +146,7 @@ class TransformerFuzzer(BaseFuzzer):
             self.val_data = val_data
 
         # train NN
-        self.model.train(self.train_data, self.val_data)
+        self.model.train(self.train_data, self.val_data, epochs=self.epochs)
 
 
 if __name__ == '__main__':

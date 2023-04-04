@@ -64,7 +64,7 @@ class RPCGuidance(
         if (warmupGuidance != null) when (nInputs) {
             warmupInputs -> {
                 socket.post("totalevents", totalCoverage.counter.size())
-                socket.post("pretrain", warmupFiles, warmupSeqs.apply { add(eventseq) })
+                socket.post("pretrain", warmupSeqs.apply { add(eventseq) }, warmupFiles)
                 warmupFiles.clear()
                 warmupSeqs.clear()
             }

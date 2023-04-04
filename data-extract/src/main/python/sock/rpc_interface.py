@@ -18,6 +18,7 @@ class RPCInterface:
         self.addr = sock
         self.funcs = dict()
         self.obj = None
+        self.isconnected = False
 
     def register(self, name, self_=None):
         def decorator(func):
@@ -25,8 +26,10 @@ class RPCInterface:
 
             @functools.wraps(func)
             def wrapper(self_, *args):
-                logger.debug(f"calling {name}")
-                if args:
+                logger.debug(f"preparing {name}")
+                if not self.isconnected:
+                    # for debugging purposes, this will execute locally if no connection has been established.
+                    logger.warning(f"Calling {name} locally")
                     return func(self_, *args)
                 params = []
                 spec = getfullargspec(func)
@@ -40,9 +43,13 @@ class RPCInterface:
                         len_ = self.read_int()
                         # get data
                         params.append([self.read() for _ in range(len_)])
+
+                logger.debug(f"calling {name}")
                 res = func(self_, *params)
+                logger.debug(f"retrieving results of {name}")
                 if res is not None:
                     self.write(res)
+                logger.debug(f"finished {name}")
                 return res
 
             self.funcs[name] = wrapper
@@ -52,6 +59,7 @@ class RPCInterface:
     def run(self):
         with socket(AF_UNIX, SOCK_STREAM).__enter__() as self.socket:
             self.socket.connect(self.addr)
+            self.isconnected = True
             while True:
                 try:
                     func = self.read().decode()
@@ -60,6 +68,7 @@ class RPCInterface:
                     break
                 except KeyError as e:
                     print("The function", e.args[0], "does not exist")
+        self.isconnected = False
 
     def write(self, msg):
         input_ = msg.encode("utf-8")
