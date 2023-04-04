@@ -37,13 +37,18 @@ class RPCInterface(sock: String = "/tmp/jqf.sock", process: ProcessBuilder) {
         return res
     }
 
+    fun post(key: String, data: ByteArray) {
+        write(key)
+        writeByteArray(data)
+    }
+
     fun post(key: String, vararg data: List<ByteArray>) {
         write(key)
         writeInt(data.size)
         data.forEach { it.forEach { it_ -> writeByteArray(it_) } }
     }
 
-    fun postInt(key: String, int:Int) {
+    fun post(key: String, int: Int) {
         write(key)
         writeInt(int)
     }

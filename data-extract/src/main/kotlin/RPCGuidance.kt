@@ -14,14 +14,10 @@ import java.util.function.Consumer
 import kotlin.system.exitProcess
 
 class RPCGuidance(
-    process: ProcessBuilder,
-    private val warmupGuidance: Guidance?,
-    private val warmupInputs: Long = 1_00L
+    process: ProcessBuilder, private val warmupGuidance: Guidance?, private val warmupInputs: Long = 1_00L
 ) : Guidance {
 
     private var nInputs = 0L
-
-    // TODO call python process correctly
     private val socket = RPCInterface(process = process)
     private var warmupFiles = mutableListOf<ByteArray>()
     private var warmupSeqs = mutableListOf<ByteArray>()
@@ -34,21 +30,19 @@ class RPCGuidance(
 
     override fun getInput(): InputStream {
         // pull data from warmup guidance or from the socket
-        val arr = if (warmupRequired)
-            (warmupGuidance!!.input).run {
-                val bytes = mutableListOf<Int>()
-                while (true) {
-                    try {
-                        bytes.add(this.read())
-                    } catch (_: IllegalStateException) {
-                        break
-                    }
+        val arr = if (warmupRequired) (warmupGuidance!!.input).run {
+            val bytes = mutableListOf<Int>()
+            while (true) {
+                try {
+                    bytes.add(this.read())
+                } catch (_: IllegalStateException) {
+                    break
                 }
+            }
 
-                bytes.map { it.toByte() }.toByteArray()
-            }.also { warmupFiles.add(it) }
+            bytes.map { it.toByte() }.toByteArray()
+        }.also { warmupFiles.add(it) }
         else
-        // TODO deal properly with batches
             socket.get("geninput")
 
         return ByteArrayInputStream(arr)
@@ -64,13 +58,12 @@ class RPCGuidance(
             (nInputs % 1000 == 0L) -> print('.')
         }
 
-        // TODO: calculate eventseq
-        val eventseq = byteArrayOf()
+        val eventseq = events.map { it.toByte() }.toByteArray()
+        events.clear()
 
         if (warmupGuidance != null) when (nInputs) {
             warmupInputs -> {
-                // TODO create list of all events
-                socket.postInt("totalevents", totalCoverage.counter.size())
+                socket.post("totalevents", totalCoverage.counter.size())
                 socket.post("pretrain", warmupFiles, warmupSeqs.apply { add(eventseq) })
                 warmupFiles.clear()
                 warmupSeqs.clear()
@@ -82,8 +75,8 @@ class RPCGuidance(
             }
         }
         if (!warmupRequired)
-            // send only result to clients observe method
-            socket.post("observe", listOf(eventseq))
+        // send only result to clients observe method
+            socket.post("observe", eventseq)
     }
 
     override fun generateCallBack(thread: Thread?): Consumer<TraceEvent> {
@@ -91,8 +84,7 @@ class RPCGuidance(
     }
 
     private fun handleEvent(e: TraceEvent?) {
-        if (e is BranchEvent)
-            events.add(e.iid)
+        if (e is BranchEvent) events.add(e.iid)
     }
 }
 
@@ -115,8 +107,8 @@ fun main(args: Array<String>) {
         val guidance = ZestGuidance(title, null, outputDirectory)
         val dir = File("data-extract/src/main/python")
         val rpcGuidance = RPCGuidance(
-            ProcessBuilder(pythoninter, "transformer/transformer_algo.py")
-                .directory(dir).inheritIO().apply { environment()["PYTHONPATH"] = dir.absolutePath}, guidance
+            ProcessBuilder(pythoninter, "transformer/transformer_algo.py").directory(dir).inheritIO()
+                .apply { environment()["PYTHONPATH"] = dir.absolutePath }, guidance
         )
 
         // Run the Junit test
