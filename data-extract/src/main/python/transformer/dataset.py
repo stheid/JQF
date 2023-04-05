@@ -32,7 +32,7 @@ class Dataset:
         for attr in ['X', 'y']:
             old = getattr(self, attr)
             new = getattr(other, attr)
-            setattr(self, attr, np.vstack((old.reshape(-1, new.shape[1]), new)))
+            setattr(self, attr, np.append(old, new))
 
         # add old and new weights
         old = np.ones_like(self.weights)

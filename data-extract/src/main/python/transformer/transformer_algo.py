@@ -1,7 +1,3 @@
-import logging
-import numpy as np
-from typing import List
-
 from sock.rpc_interface import RPCInterface
 from transformer.base import BaseFuzzer
 from transformer.model import *
@@ -26,12 +22,10 @@ class TransformerFuzzer(BaseFuzzer):
                  n_sample_positions=100, epochs=10, exp=6, vocab_size=100, sequence_length=20, batch_size=64,
                  embed_dim=256, latent_dim=2048, num_heads=8):
         super().__init__()
-        self.n_sample_candidates = n_sample_candidates
-        self.events = 100
-        self.uncovered_bits = None
         self.exp = exp
-        self.batch = []
+        self.n_sample_candidates = n_sample_candidates
         self.epochs = epochs
+        self.batch_size = batch_size
         self.max_input_len = max_input_len
         self.n_sample_positions = n_sample_positions
 
@@ -40,9 +34,19 @@ class TransformerFuzzer(BaseFuzzer):
                                       num_heads=num_heads)
 
         # uint8, float32, samples×width
-        self.train_data = Dataset()
+        self.batch = []
+        self.events = 100
+        self.new_seqs = []
+        self.new_files = []
         self.val_data = Dataset()
+        self.train_data = Dataset()
+
+        self.event_bitsize = 8  # bytes
         remote.obj = self
+
+    @remote.register("bitsize")
+    def event_bitsize(self, d: int):
+        self.event_bitsize = d
 
     @remote.register("totalevents")
     def get_total_events(self, n: int):
@@ -70,6 +74,11 @@ class TransformerFuzzer(BaseFuzzer):
         logger.info("Finished training on pre-given dataset")
 
     @remote.register("geninput")
+    def geninput(self) -> bytes:
+        if not self.batch:
+            self.batch = self.create_inputs()
+        return self.batch[0]
+
     def create_inputs(self) -> List[bytes]:
         result: List[bytes] = []
         # 1. sample candidates
@@ -82,7 +91,7 @@ class TransformerFuzzer(BaseFuzzer):
 
         return result
 
-    def _mutate(self, seqs, alpha=2, beta=1, size=5, mode="sub", seq_type: int = 1):
+    def _mutate(self, seqs, alpha=2, beta=1, size=5, mode="sub", seq_type: int = 1) -> bytes:
         """
         :param seqs: an event with a sequence of bytes
         :param alpha and beta: parameters to shift sampling towards left, right, up or down
@@ -97,7 +106,7 @@ class TransformerFuzzer(BaseFuzzer):
             n_pos = np.random.beta(a=alpha, b=beta, size=size % len(seqs)) * len(seqs)
 
             # sample values (uniform)
-            values = np.random.choice(max(self.events, 1 << (seq_type * 8)), len(n_pos), replace=False)
+            values = np.random.choice(max(self.events, 1 << (seq_type * self.event_bitsize)), len(n_pos), replace=False)
 
             # mutate
             res = bytearray(seqs)
@@ -109,32 +118,20 @@ class TransformerFuzzer(BaseFuzzer):
         print("incorrect mode, no mutation")
         return seqs
 
-    @remote.register("observe")
-    def observe(self, fuzzing_result: List[bytes]):
-        data = Dataset(np.array([np.frombuffer(b, dtype=np.uint8) for b in self.batch]),
-                       np.array(fuzzing_result))
+    @remote.register("observe_single")
+    def observe_single(self, status: int, seq: bytes):
+        if status != 0:
+            self.new_files.append(self.batch[0])
+            self.new_seqs.append(seq)
+        self.batch.pop(0)
+        if len(self.new_files) == self.batch_size:
+            self.update(Dataset(self.new_files, self.new_seqs))
+            self.new_seqs.clear()
+            self.new_files.clear()
 
-        if self.uncovered_bits is None:
-            self.uncovered_bits = np.ones_like(fuzzing_result[0], dtype=np.uint8)
+    def update(self, new_data: Dataset):
 
-        candidate_indices = []
-        for i, result in enumerate(fuzzing_result):
-            rmsb = remove_lsb(result)
-
-            if np.any(rmsb & self.uncovered_bits):
-                self.uncovered_bits &= ~rmsb
-                candidate_indices.append(i)
-
-        # select only covered edges from indices calculated above
-        new_data = data[tuple(candidate_indices)]
-
-        # if there is no data then no need for training again
-        if new_data.is_empty:
-            logger.info("No newly covered edges: all inputs discarded.")
-            return
-
-        # split
-        train_data, val_data = new_data.split(frac=0.8)
+        train_data, val_data = new_data.split(frac=0.9)
 
         # Initialize model and update train and val data for training
         if self.model.is_model_created:
@@ -152,12 +149,13 @@ class TransformerFuzzer(BaseFuzzer):
 if __name__ == '__main__':
     gen = TransformerFuzzer(max_input_len=500, epochs=1, exp=6, vocab_size=100, sequence_length=20,
                             batch_size=64, embed_dim=256, latent_dim=2048, num_heads=8)
-    # test- pretrain
+    # get initial zest test data
     seqs, files = load_jqf("/home/ajrox/Programs/pylibfuzzer/examples/transformer_jqf/data/fuzz-results/")
+    # test pre-train
     gen.pretrain(seqs, files)
-    new_inputs = gen.create_inputs()
-    print("")
+    # test geninput and populate batch
+
+    # test observe_single
 
     # create
-    print("")
     # remote.run()
