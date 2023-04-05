@@ -1,9 +1,11 @@
 import functools
-from socket import socket, AF_UNIX, SOCK_STREAM
-from struct import unpack, pack
-import struct
 import logging
+import struct
 from inspect import getfullargspec
+from struct import unpack, pack
+from typing import List
+
+from socket import socket, AF_UNIX, SOCK_STREAM
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -38,11 +40,15 @@ class RPCInterface:
                         continue
                     if spec.annotations[arg] == int:
                         params.append(self.read_int())
-                    else:
+                    elif spec.annotations[arg] == bytes:
+                        params.append(self.read())
+                    elif spec.annotations[arg] == List[bytes]:
                         # get length
                         len_ = self.read_int()
                         # get data
                         params.append([self.read() for _ in range(len_)])
+                    else:
+                        raise ValueError(f"could not parse parameters of {name}")
 
                 logger.debug(f"calling {name}")
                 res = func(self_, *params)
@@ -54,6 +60,7 @@ class RPCInterface:
 
             self.funcs[name] = wrapper
             return wrapper
+
         return decorator
 
     def run(self):

@@ -1,5 +1,6 @@
 package socket
 
+import java.net.SocketException
 import java.net.StandardProtocolFamily
 import java.net.UnixDomainSocketAddress
 import java.nio.ByteBuffer
@@ -31,28 +32,44 @@ class RPCInterface(sock: String = "/tmp/jqf.sock", process: ProcessBuilder) {
     }
 
     fun get(key: String): ByteArray {
-        write(key)
-        val res = readByteArray()
-        println("$key -> $res")
-        return res
+        try {
+            write(key)
+            val res = readByteArray()
+            println("$key -> $res")
+            return res
+        } catch (e: SocketException) {
+            error("Socket connection failed while calling $key")
+        }
     }
 
     fun post(key: String, data: ByteArray) {
-        write(key)
-        write(data)
+        try {
+            write(key)
+            write(data)
+        } catch (e: SocketException) {
+            error("Socket connection failed while calling $key")
+        }
     }
 
     fun post(key: String, vararg data: List<ByteArray>) {
-        write(key)
-        data.forEach { write(it) }
+        try {
+            write(key)
+            data.forEach { write(it) }
+        } catch (e: SocketException) {
+            error("Socket connection failed while calling $key")
+        }
     }
 
     fun post(key: String, int: Int) {
-        write(key)
-        write(int)
+        try {
+            write(key)
+            write(int)
+        } catch (e: SocketException) {
+            error("Socket connection failed while calling $key")
+        }
     }
 
-    private fun write(int: Int) {
+    fun write(int: Int) {
         val buffer = ByteBuffer.allocate(4)
         buffer.order(ByteOrder.LITTLE_ENDIAN)
         buffer.putInt(int)
@@ -60,12 +77,12 @@ class RPCInterface(sock: String = "/tmp/jqf.sock", process: ProcessBuilder) {
         channel.write(buffer)
     }
 
-    private fun write(payload: List<ByteArray>) {
+    fun write(payload: List<ByteArray>) {
         write(payload.size)
-        payload.forEach { write(it)}
+        payload.forEach { write(it) }
     }
 
-    private fun write(payload: ByteArray) {
+    fun write(payload: ByteArray) {
         write(payload.size)
         val buffer = ByteBuffer.allocate(payload.size)
         buffer.put(payload)
@@ -73,7 +90,7 @@ class RPCInterface(sock: String = "/tmp/jqf.sock", process: ProcessBuilder) {
         channel.write(buffer)
     }
 
-    private fun write(key: String) = write(key.toByteArray(Charsets.UTF_8))
+    fun write(key: String) = write(key.toByteArray(Charsets.UTF_8))
 
     private fun readInt(): Int {
         val buffer = ByteBuffer.allocate(4)

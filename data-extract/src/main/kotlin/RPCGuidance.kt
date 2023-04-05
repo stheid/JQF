@@ -10,6 +10,7 @@ import socket.RPCInterface
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.InputStream
+import java.net.SocketException
 import java.util.function.Consumer
 import kotlin.system.exitProcess
 
@@ -70,6 +71,7 @@ class RPCGuidance(
 
         if (warmupGuidance != null) when (nInputs) {
             warmupInputs -> {
+                socket.post("bitsize", 8)
                 socket.post("totalevents", totalCoverage.counter.size())
                 socket.post("pretrain", warmupSeqs.apply { add(eventseq) }, warmupFiles.apply { add(currwarmupFile!!) })
                 warmupFiles.clear()
@@ -82,9 +84,9 @@ class RPCGuidance(
                 warmupSeqs.add(eventseq)
             }
         }
-        if (!warmupRequired)
+        if (warmupGuidance != null && nInputs > warmupInputs)
         // send only result to clients observe method
-            socket.post("observe", eventseq)
+            socket.observe((result != Result.SUCCESS).toInt(), eventseq)
     }
 
     override fun generateCallBack(thread: Thread?): Consumer<TraceEvent> {
@@ -95,6 +97,20 @@ class RPCGuidance(
         if (e is BranchEvent) events.add(e.iid)
     }
 }
+
+private fun Boolean.toInt() = if (this) 1 else 0
+
+
+private fun RPCInterface.observe(int: Int, eventseq: ByteArray) {
+    try {
+        write("observe")
+        write(int)
+        write(eventseq)
+    } catch (e: SocketException) {
+        error("Socket connection failed while calling observe")
+    }
+}
+
 
 fun main(args: Array<String>) {
     // wait for the JVM to be completely ready with javaagent and so on

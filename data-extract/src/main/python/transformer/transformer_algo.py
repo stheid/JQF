@@ -1,9 +1,11 @@
+import logging
+import numpy as np
+from typing import List
+
 from sock.rpc_interface import RPCInterface
 from transformer.base import BaseFuzzer
-from transformer.model import *
-from utils import remove_lsb, load_jqf
-
 from transformer.dataset import Dataset
+from transformer.model import *
 from transformer.model import TransformerModel
 
 logging.basicConfig()
@@ -62,16 +64,19 @@ class TransformerFuzzer(BaseFuzzer):
         """
         # todo: use Dataset() to store and split train and val data
         logger.debug("splitting dataset")
+
+        # TODO convert sequences to list of integers
         self.train_data, self.val_data = Dataset(X=np.array(seqs), y=np.array(files)).split()
         # prepare training and validation data from the data through the socket
         # Initialize model and update train and val data for training
         if not self.model.is_model_created:
             logger.debug("initializing model")
             self.model.initialize_model()
+
         # train NN
-        logger.info("Begin training on pre-given dataset")
+        logger.info("Begin pretraining")
         self.model.train(self.train_data, self.val_data, epochs=self.epochs)
-        logger.info("Finished training on pre-given dataset")
+        logger.info("Finished pretraining")
 
     @remote.register("geninput")
     def geninput(self) -> bytes:
@@ -106,7 +111,7 @@ class TransformerFuzzer(BaseFuzzer):
             n_pos = np.random.beta(a=alpha, b=beta, size=size % len(seqs)) * len(seqs)
 
             # sample values (uniform)
-            values = np.random.choice(max(self.events, 1 << (seq_type * self.event_bitsize)), len(n_pos), replace=False)
+            values = np.random.choice(max(self.events, 1 << (self.event_bitsize)), len(n_pos), replace=False)
 
             # mutate
             res = bytearray(seqs)
@@ -122,6 +127,7 @@ class TransformerFuzzer(BaseFuzzer):
     def observe_single(self, status: int, seq: bytes):
         if status != 0:
             self.new_files.append(self.batch[0])
+            #TODO convert sequences to list of integers
             self.new_seqs.append(seq)
         self.batch.pop(0)
         if len(self.new_files) == self.batch_size:
@@ -150,12 +156,12 @@ if __name__ == '__main__':
     gen = TransformerFuzzer(max_input_len=500, epochs=1, exp=6, vocab_size=100, sequence_length=20,
                             batch_size=64, embed_dim=256, latent_dim=2048, num_heads=8)
     # get initial zest test data
-    seqs, files = load_jqf("/home/ajrox/Programs/pylibfuzzer/examples/transformer_jqf/data/fuzz-results/")
+    # seqs, files = load_jqf("/home/ajrox/Programs/pylibfuzzer/examples/transformer_jqf/data/fuzz-results/")
     # test pre-train
-    gen.pretrain(seqs, files)
+    # gen.pretrain(seqs, files)
     # test geninput and populate batch
 
     # test observe_single
 
     # create
-    # remote.run()
+    remote.run()
