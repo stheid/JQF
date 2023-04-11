@@ -7,6 +7,7 @@ from transformer.base import BaseFuzzer
 from transformer.dataset import Dataset
 from transformer.model import *
 from transformer.model import TransformerModel
+from utils import load_jqf
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -127,7 +128,7 @@ class TransformerFuzzer(BaseFuzzer):
     def observe_single(self, status: int, seq: bytes):
         if status != 0:
             self.new_files.append(self.batch[0])
-            #TODO convert sequences to list of integers
+            # TODO convert sequences to list of integers
             self.new_seqs.append(seq)
         self.batch.pop(0)
         if len(self.new_files) == self.batch_size:
@@ -155,13 +156,25 @@ class TransformerFuzzer(BaseFuzzer):
 if __name__ == '__main__':
     gen = TransformerFuzzer(max_input_len=500, epochs=1, exp=6, vocab_size=100, sequence_length=20,
                             batch_size=64, embed_dim=256, latent_dim=2048, num_heads=8)
-    # get initial zest test data
+    # # get initial zest test data
     # seqs, files = load_jqf("/home/ajrox/Programs/pylibfuzzer/examples/transformer_jqf/data/fuzz-results/")
-    # test pre-train
+    # # test pre-train
     # gen.pretrain(seqs, files)
-    # test geninput and populate batch
-
-    # test observe_single
-
+    # # test geninput and populate batch
+    # a = gen.geninput()
+    # print(a)
+    # import os
+    # import random
+    # #
+    # # # test observe_single
+    # for i in range(128):
+    #     if len(gen.batch) == 0:
+    #         gen.geninput()
+    #     seq = os.urandom(random.randint(0, 20))
+    #     file = os.urandom(random.randint(0, 500))
+    #     sc = 0
+    #     if i % 2 == 0:
+    #         sc = 1
+    #     gen.observe_single(sc, seq)
     # create
     remote.run()

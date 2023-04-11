@@ -8,15 +8,16 @@ logger = logging.getLogger(__name__)
 class Dataset:
     def __init__(self, X: np.array = None, y: np.array = None,
                  max_size=10000, new_sw=2, weights=None):
+
         if X is None and y is None:
             self.X = np.array([])
             self.y = np.array([])
-        elif len(X.shape) == 1 and len(y.shape) == 1:
-            self.X = X
-            self.y = y
-        else:
-            raise RuntimeError(f"X and y should be always 1 dimensional, but found: X.shape: {X.shape}, y.shape: "
-                               f"{y.shape}")
+        elif (type(X) != np.array) or (type(y) != np.array):
+            self.X = np.array(X)
+            self.y = np.array(y)
+            if len(self.X.shape) != 1 and len(self.y.shape) != 1:
+                raise RuntimeError(f"X and y should be always 1 dimensional, but found: X.shape: {self.X.shape}, y.shape: "
+                                   f"{self.y.shape}")
         self.max_size = max_size
         self.new_sw = new_sw  # sample weights
         if weights is None and X is not None:
