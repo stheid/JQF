@@ -78,7 +78,10 @@ class RPCInterface:
         self.isconnected = False
 
     def write(self, msg):
-        input_ = msg.encode("utf-8")
+        if type(msg) != bytes:
+            input_ = msg.encode("utf-8")
+        else:
+            input_ = msg
         self.socket.sendall(pack('I', len(input_)) + input_)
 
     def read_int(self):

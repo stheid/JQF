@@ -46,7 +46,7 @@ class RPCGuidance(
         }.also {
             // @FuzzStatement.evaluate() might sometimes eat away inputs because of AssumptionViolationExceptions
             //     which will not trigger the handleResult.
-            // Therefore, we need to overrige the current file in that case and only store it inside the handleResult
+            // Therefore, we need to override the current file in that case and only store it inside the handleResult
             currwarmupFile = it
         }
         else
@@ -69,22 +69,21 @@ class RPCGuidance(
         val eventseq = events.map { it.toByte() }.toByteArray()
         events.clear()
 
-        if (warmupGuidance != null) when (nInputs) {
-            warmupInputs -> {
+        if (warmupGuidance != null) {
+            if (nInputs<warmupInputs) {
                 socket.post("bitsize", 8)
                 socket.post("totalevents", totalCoverage.counter.size())
                 socket.post("pretrain", warmupSeqs.apply { add(eventseq) }, warmupFiles.apply { add(currwarmupFile!!) })
                 warmupFiles.clear()
                 warmupSeqs.clear()
             }
-
-            else -> {
+            else if (nInputs==warmupInputs){
                 // store event
                 warmupFiles.add(currwarmupFile!!)
                 warmupSeqs.add(eventseq)
             }
         }
-        if (warmupGuidance != null && nInputs > warmupInputs)
+        if (nInputs >= warmupInputs)
         // send only result to clients observe method
             socket.observe((result != Result.SUCCESS).toInt(), eventseq)
     }
