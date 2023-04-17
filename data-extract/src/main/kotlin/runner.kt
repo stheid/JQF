@@ -5,11 +5,7 @@ import edu.berkeley.cs.jqf.fuzz.junit.GuidedFuzzing
 import edu.berkeley.cs.jqf.instrument.tracing.events.BranchEvent
 import edu.berkeley.cs.jqf.instrument.tracing.events.TraceEvent
 import org.eclipse.collections.impl.set.mutable.primitive.IntHashSet
-import java.io.BufferedOutputStream
-import java.io.DataOutputStream
-import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
+import java.io.*
 import java.time.Duration
 import java.util.*
 import java.util.concurrent.Executors
@@ -20,9 +16,9 @@ import kotlin.system.exitProcess
 class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?) :
     ZestGuidance(testName, duration, outputDirectory) {
     private var events = mutableListOf<Int>()
-    private val eventsFile = File("$outputDirectory/events.bin").apply { bufferedWriter().write("") }
-    private val idsFile = File("$outputDirectory/ids.csv").apply { bufferedWriter().write("") }
-    private val totalCovFile = File("$outputDirectory/total_coverage.csv").apply { bufferedWriter().write("") }
+    private val eventsFile = File(outputDirectory, "events.bin").apply { bufferedWriter().write("") }
+    private val idsFile = File(outputDirectory, "ids.csv").apply { bufferedWriter().write("") }
+    private val totalCovFile = File(outputDirectory, "total_coverage.csv").apply { bufferedWriter().write("") }
     private val executor = Executors.newSingleThreadExecutor()
     private val iidMap = mutableMapOf<Int, Int>()
 

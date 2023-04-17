@@ -27,7 +27,7 @@ class RPCGuidance(
     private var warmupSeqs = mutableListOf<ByteArray>()
     private var events = mutableListOf<Int>()
     private var totalCoverage = CoverageFactory.newInstance()
-    private val totalCovFile =  File("$outputDirectory/total_coverage.csv").apply { bufferedWriter().write("") }
+    private val totalCovFile = File(outputDirectory, "total_coverage.csv").apply { bufferedWriter().write("") }
 
     // if there is no warmup guidance we assume it is already warmed up
     private val warmupRequired: Boolean
