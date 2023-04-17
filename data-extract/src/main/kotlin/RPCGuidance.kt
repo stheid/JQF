@@ -70,20 +70,20 @@ class RPCGuidance(
         events.clear()
 
         if (warmupGuidance != null) {
-            if (nInputs<warmupInputs) {
+            if (nInputs<warmupInputs){
+                // store event
+                warmupFiles.add(currwarmupFile!!)
+                warmupSeqs.add(eventseq)
+            }
+            else if (nInputs==warmupInputs) {
                 socket.post("bitsize", 8)
                 socket.post("totalevents", totalCoverage.counter.size())
                 socket.post("pretrain", warmupSeqs.apply { add(eventseq) }, warmupFiles.apply { add(currwarmupFile!!) })
                 warmupFiles.clear()
                 warmupSeqs.clear()
             }
-            else if (nInputs==warmupInputs){
-                // store event
-                warmupFiles.add(currwarmupFile!!)
-                warmupSeqs.add(eventseq)
-            }
         }
-        if (nInputs >= warmupInputs)
+        if (nInputs > warmupInputs)
         // send only result to clients observe method
             socket.observe((result != Result.SUCCESS).toInt(), eventseq)
     }

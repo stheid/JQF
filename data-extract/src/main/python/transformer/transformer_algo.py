@@ -66,7 +66,7 @@ class TransformerFuzzer(BaseFuzzer):
         # TODO convert sequences to list of integers
 
         # logger.debug("splitting dataset")
-        self.train_data, self.val_data = Dataset(X=np.array(seqs), y=np.array(files)).split(frac=1)
+        self.train_data, self.val_data = Dataset(X=np.array(seqs), y=np.array(files)).split(frac=0.8)
         # logger.debug(f'len(train_data) : {len(self.train_data)}')
 
         # Initialize model and update train and val data for training
