@@ -11,7 +11,7 @@ from utils import load_jqf
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 remote = RPCInterface()
 
@@ -25,6 +25,8 @@ class TransformerFuzzer(BaseFuzzer):
                  n_sample_positions=100, epochs=10, exp=6, vocab_size=100, sequence_length=20, batch_size=64,
                  embed_dim=256, latent_dim=2048, num_heads=8):
         super().__init__()
+        self.currfile = None
+        self.n_discarded_inputs = 0
         self.exp = exp
         self.n_sample_candidates = n_sample_candidates
         self.epochs = epochs
@@ -82,18 +84,25 @@ class TransformerFuzzer(BaseFuzzer):
     @remote.register("geninput")
     def geninput(self) -> bytes:
         if not self.batch:
+            logger.info(f'creating a new batch of training data')
             self.batch = self.create_inputs()
+            logger.info(f'Finished creating a new batch of training data')
         logger.debug(f'geninput: len(batch) = {len(self.batch)}')
-        return self.batch[0]
+        self.currfile = self.batch.pop(0)
+        return self.currfile
 
     def create_inputs(self) -> List[bytes]:
         result: List[bytes] = []
         # 1. sample candidates
         logger.debug(f'train_data: {len(self.train_data)}')
+        logger.debug(f'batch_size: {self.model.batch_size}')
         if self.train_data.is_empty:
             raise Exception("No training data available, cannot create inputs. Pre-train first!")
-        mask = np.random.randint(len(self.train_data), self.model.batch_size, replace=False)
-        for seq in self.train_data.X[mask]:
+        if len(self.train_data) < self.model.batch_size:
+            replace = True
+        else:
+            replace = False
+        for seq in np.random.choice(self.train_data.X, self.model.batch_size, replace=replace):
             mutated_seq = self._mutate(seq, size=10, mode="sub")
             result.append(mutated_seq)
 
@@ -130,17 +139,23 @@ class TransformerFuzzer(BaseFuzzer):
     def observe_single(self, status: int, seq: bytes):
         logger.debug(f'len(batch): {len(self.batch)}')
         if status != 0:
-            self.new_files.append(self.batch[0])
+            self.new_files.append(self.currfile)
             # TODO convert sequences to list of integers
             self.new_seqs.append(seq)
-        self.batch.pop(0)
+        else:
+            # result.status != SUCESS, so discarding inputs
+            self.n_discarded_inputs += 1
+
         if len(self.new_files) == self.batch_size:
+            logger.info(f'discarded inputs: {self.n_discarded_inputs}')
+            self.n_discarded_inputs = 0
+
+            logger.info("collected enough data to train again.")
             self.update(Dataset(self.new_files, self.new_seqs))
             self.new_seqs.clear()
             self.new_files.clear()
 
     def update(self, new_data: Dataset):
-
         train_data, val_data = new_data.split(frac=0.9)
 
         # Initialize model and update train and val data for training

@@ -20,9 +20,9 @@ import kotlin.system.exitProcess
 class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?) :
     ZestGuidance(testName, duration, outputDirectory) {
     private var events = mutableListOf<Int>()
-    private val eventsFile = File("fuzz-results/events.bin").apply { bufferedWriter().write("") }
-    private val idsFile = File("fuzz-results/ids.csv").apply { bufferedWriter().write("") }
-    private val totalCovFile = File("fuzz-results/total_coverage.csv").apply { bufferedWriter().write("") }
+    private val eventsFile = File("$outputDirectory/events.bin").apply { bufferedWriter().write("") }
+    private val idsFile = File("$outputDirectory/ids.csv").apply { bufferedWriter().write("") }
+    private val totalCovFile = File("$outputDirectory/total_coverage.csv").apply { bufferedWriter().write("") }
     private val executor = Executors.newSingleThreadExecutor()
     private val iidMap = mutableMapOf<Int, Int>()
 
@@ -123,7 +123,7 @@ fun main(args: Array<String>) {
 
     val testClassName = args[0]
     val testMethodName = args[1]
-    val outputDirectory = File("fuzz-results")
+    val outputDirectory = File("fuzz-results-runner")
 
     try {
         // Load the guidance

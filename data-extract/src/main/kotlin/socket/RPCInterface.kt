@@ -35,7 +35,7 @@ class RPCInterface(sock: String = "/tmp/jqf.sock", process: ProcessBuilder) {
         try {
             write(key)
             val res = readByteArray()
-            println("$key -> $res")
+//            println("$key -> $res")
             return res
         } catch (e: SocketException) {
             error("Socket connection failed while calling $key")

@@ -3,19 +3,21 @@ import edu.berkeley.cs.jqf.fuzz.ei.ZestGuidance
 import edu.berkeley.cs.jqf.fuzz.guidance.Guidance
 import edu.berkeley.cs.jqf.fuzz.guidance.Result
 import edu.berkeley.cs.jqf.fuzz.junit.GuidedFuzzing
+import edu.berkeley.cs.jqf.fuzz.util.Coverage
 import edu.berkeley.cs.jqf.fuzz.util.CoverageFactory
 import edu.berkeley.cs.jqf.instrument.tracing.events.BranchEvent
 import edu.berkeley.cs.jqf.instrument.tracing.events.TraceEvent
 import socket.RPCInterface
-import java.io.ByteArrayInputStream
 import java.io.File
+import java.io.FileOutputStream
 import java.io.InputStream
 import java.net.SocketException
 import java.util.function.Consumer
 import kotlin.system.exitProcess
 
 class RPCGuidance(
-    process: ProcessBuilder, private val warmupGuidance: Guidance?, private val warmupInputs: Long = 1_00L
+    process: ProcessBuilder, private val warmupGuidance: Guidance?, private val warmupInputs: Long = 10_000L,
+    outputDirectory: File = File("fuzz-results").apply { mkdir() }
 ) : Guidance {
 
     private var nInputs = 0L
@@ -25,6 +27,7 @@ class RPCGuidance(
     private var warmupSeqs = mutableListOf<ByteArray>()
     private var events = mutableListOf<Int>()
     private var totalCoverage = CoverageFactory.newInstance()
+    private val totalCovFile =  File("$outputDirectory/total_coverage.csv").apply { bufferedWriter().write("") }
 
     // if there is no warmup guidance we assume it is already warmed up
     private val warmupRequired: Boolean
@@ -51,8 +54,8 @@ class RPCGuidance(
         }
         else
             socket.get("geninput")
-
-        return ByteArrayInputStream(arr)
+        return PaddedByteArrayInputStream(arr)
+        //ByteArrayInputStream(arr)
     }
 
     override fun hasInput() = true
@@ -69,23 +72,27 @@ class RPCGuidance(
         val eventseq = events.map { it.toByte() }.toByteArray()
         events.clear()
 
-        if (warmupGuidance != null) {
+        if (warmupGuidance != null && nInputs <= warmupInputs) {
             if (nInputs<warmupInputs){
                 // store event
                 warmupFiles.add(currwarmupFile!!)
                 warmupSeqs.add(eventseq)
             }
-            else if (nInputs==warmupInputs) {
+            else {
                 socket.post("bitsize", 8)
                 socket.post("totalevents", totalCoverage.counter.size())
                 socket.post("pretrain", warmupSeqs.apply { add(eventseq) }, warmupFiles.apply { add(currwarmupFile!!) })
                 warmupFiles.clear()
                 warmupSeqs.clear()
             }
-        }
-        if (nInputs > warmupInputs)
+        }else
         // send only result to clients observe method
             socket.observe((result != Result.SUCCESS).toInt(), eventseq)
+
+        FileOutputStream(totalCovFile, true).bufferedWriter().use{ out ->
+            out.write((totalCoverage.nonZeroCount * 100.0 / totalCoverage.size()).toString())
+            out.newLine()
+        }
     }
 
     override fun generateCallBack(thread: Thread?): Consumer<TraceEvent> {
@@ -94,6 +101,8 @@ class RPCGuidance(
 
     private fun handleEvent(e: TraceEvent?) {
         if (e is BranchEvent) events.add(e.iid)
+        // Collect totalCoverage
+        (totalCoverage as Coverage).handleEvent(e)
     }
 }
 
@@ -122,16 +131,16 @@ fun main(args: Array<String>) {
     val pythoninter = System.getenv("PYTHONINTER") ?: "python"
     val testClassName = args[0]
     val testMethodName = args[1]
-    val outputDirectory = File("fuzz-results")
+    val warmUpOutputDirectory = File("fuzz-results-warmup")
 
     try {
         // Load the guidance
         val title = "$testClassName#$testMethodName"
-        val guidance = ZestGuidance(title, null, outputDirectory)
+        val warmupGuidance = ZestGuidance(title, null, warmUpOutputDirectory)
         val dir = File("data-extract/src/main/python")
         val rpcGuidance = RPCGuidance(
             ProcessBuilder(pythoninter, "transformer/transformer_algo.py").directory(dir).inheritIO()
-                .apply { environment()["PYTHONPATH"] = dir.absolutePath }, guidance
+                .apply { environment()["PYTHONPATH"] = dir.absolutePath }, warmupGuidance=warmupGuidance, warmupInputs = 10_000L
         )
 
         // Run the Junit test

@@ -9,7 +9,7 @@ from socket import socket, AF_UNIX, SOCK_STREAM
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 class RPCInterface:
