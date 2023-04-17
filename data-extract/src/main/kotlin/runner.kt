@@ -55,7 +55,7 @@ class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?
     }
 
     override fun handleResult(result: Result?, error: Throwable?) {
-        val maxAllowedInputs = 500000
+        val maxAllowedInputs = 10000
         val eventList = events.toList()
         executor.execute {
             DataOutputStream(BufferedOutputStream(FileOutputStream(eventsFile, true))).also { dst ->

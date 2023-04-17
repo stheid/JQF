@@ -5,9 +5,12 @@ import edu.berkeley.cs.jqf.fuzz.guidance.Result
 import edu.berkeley.cs.jqf.fuzz.junit.GuidedFuzzing
 import edu.berkeley.cs.jqf.fuzz.util.Coverage
 import edu.berkeley.cs.jqf.fuzz.util.CoverageFactory
+import edu.berkeley.cs.jqf.instrument.tracing.FastCoverageSnoop
 import edu.berkeley.cs.jqf.instrument.tracing.events.BranchEvent
 import edu.berkeley.cs.jqf.instrument.tracing.events.TraceEvent
+import janala.instrument.FastCoverageListener
 import socket.RPCInterface
+import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
@@ -33,6 +36,12 @@ class RPCGuidance(
     private val warmupRequired: Boolean
         get() = warmupGuidance != null && nInputs < warmupInputs
 
+    init {
+
+        if (totalCoverage is FastCoverageListener) {
+            FastCoverageSnoop.setFastCoverageListener(totalCoverage as FastCoverageListener?)
+        }
+    }
     override fun getInput(): InputStream {
         // pull data from warmup guidance or from the socket
         val arr = if (warmupRequired) (warmupGuidance!!.input).run {
@@ -54,8 +63,8 @@ class RPCGuidance(
         }
         else
             socket.get("geninput")
-        return PaddedByteArrayInputStream(arr)
-        //ByteArrayInputStream(arr)
+//        return PaddedByteArrayInputStream(arr)
+        return ByteArrayInputStream(arr)
     }
 
     override fun hasInput() = true
@@ -73,6 +82,7 @@ class RPCGuidance(
         events.clear()
 
         if (warmupGuidance != null && nInputs <= warmupInputs) {
+            warmupGuidance.handleResult(result, error)
             if (nInputs<warmupInputs){
                 // store event
                 warmupFiles.add(currwarmupFile!!)
@@ -96,7 +106,13 @@ class RPCGuidance(
     }
 
     override fun generateCallBack(thread: Thread?): Consumer<TraceEvent> {
-        return Consumer { e -> handleEvent(e) }
+        // todo: disconnect callback after warmup is done. (fix this later: creates memoryleak)
+        val warmupCallback = warmupGuidance?.generateCallBack(thread)
+        val callback = Consumer<TraceEvent> { e -> handleEvent(e) }
+//        return warmupCallback?.andThen(callback)?:callback
+//        return warmupCallback?.let { callback.andThen(it) }?:callback
+//        Consumer<TraceEvent> { e -> }
+        return callback
     }
 
     private fun handleEvent(e: TraceEvent?) {
@@ -104,8 +120,8 @@ class RPCGuidance(
         // Collect totalCoverage
         (totalCoverage as Coverage).handleEvent(e)
     }
-}
 
+}
 private fun Boolean.toInt() = if (this) 1 else 0
 
 
@@ -140,7 +156,9 @@ fun main(args: Array<String>) {
         val dir = File("data-extract/src/main/python")
         val rpcGuidance = RPCGuidance(
             ProcessBuilder(pythoninter, "transformer/transformer_algo.py").directory(dir).inheritIO()
-                .apply { environment()["PYTHONPATH"] = dir.absolutePath }, warmupGuidance=warmupGuidance, warmupInputs = 10_000L
+                .apply { environment()["PYTHONPATH"] = dir.absolutePath },
+            warmupGuidance = warmupGuidance,
+            warmupInputs = 100_000L
         )
 
         // Run the Junit test
