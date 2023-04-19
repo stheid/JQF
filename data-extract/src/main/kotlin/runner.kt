@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.system.exitProcess
 
 
-class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?) :
+class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?, val nInputs: Int = 100_000) :
     ZestGuidance(testName, duration, outputDirectory) {
     private var events = mutableListOf<Int>()
     private val eventsFile = File(outputDirectory, "events.bin").apply { bufferedWriter().write("") }
@@ -22,7 +22,7 @@ class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?
     private val executor = Executors.newSingleThreadExecutor()
     private val iidMap = mutableMapOf<Int, Int>()
 
-    override fun displayStats(force: kotlin.Boolean) {
+    override fun displayStats(force: Boolean) {
 //        super.displayStats(force)
     }
 
@@ -55,7 +55,6 @@ class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?
     }
 
     override fun handleResult(result: Result?, error: Throwable?) {
-        val maxAllowedInputs = 10000
         val eventList = events.toList()
         executor.execute {
             DataOutputStream(BufferedOutputStream(FileOutputStream(eventsFile, true))).also { dst ->
@@ -63,7 +62,7 @@ class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?
                 eventList.forEach(dst::writeShort)
                 dst.flush()
             }
-            FileOutputStream(totalCovFile, true).bufferedWriter().use{ out ->
+            FileOutputStream(totalCovFile, true).bufferedWriter().use { out ->
                 val tc = getTotalCoverage()
                 out.write((tc.nonZeroCount * 100.0 / tc.size()).toString())
                 out.newLine()
@@ -74,18 +73,18 @@ class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?
         super.handleResult(result, error)
 
         when {
-            (numTrials % 10000 == 0L) -> print(numTrials)
+            (numTrials % 10000 == 0L) -> print("${numTrials / 1000}k")
             (numTrials % 5000 == 0L) -> print(",")
             (numTrials % 1000 == 0L) -> print('.')
         }
 
-        if (numTrials >= maxAllowedInputs) {
+        if (numTrials >= nInputs) {
             executor.shutdown()
             executor.awaitTermination(1000, TimeUnit.MINUTES)
             println()
             println("Total number of IDs ${iidMap.size}")
             val duration = (Date().time - startTime.time) / 1000.0
-            println("Time consumed ${"%.2f".format(duration)}s, ${"%.2f".format(numTrials/duration)} inputs/s")
+            println("Time consumed ${"%.2f".format(duration)}s, ${"%.2f".format(numTrials / duration)} inputs/s")
             if (iidMap.size.toShort().toInt() != iidMap.size)
                 error("To many IDs, change code back to Integer ids")
             exitProcess(0)
@@ -124,7 +123,7 @@ fun main(args: Array<String>) {
     try {
         // Load the guidance
         val title = "$testClassName#$testMethodName"
-        val guidance = MeasureZest(title, null, outputDirectory)
+        val guidance = MeasureZest(title, null, outputDirectory, 100_000)
 
         // Run the Junit test
         val res = GuidedFuzzing.run(testClassName, testMethodName, guidance, System.out)

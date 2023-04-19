@@ -42,6 +42,7 @@ class RPCGuidance(
             FastCoverageSnoop.setFastCoverageListener(totalCoverage as FastCoverageListener?)
         }
     }
+
     override fun getInput(): InputStream {
         // pull data from warmup guidance or from the socket
         val arr = if (warmupRequired) (warmupGuidance!!.input).run {
@@ -83,23 +84,22 @@ class RPCGuidance(
 
         if (warmupGuidance != null && nInputs <= warmupInputs) {
             warmupGuidance.handleResult(result, error)
-            if (nInputs<warmupInputs){
+            if (nInputs < warmupInputs) {
                 // store event
                 warmupFiles.add(currwarmupFile!!)
                 warmupSeqs.add(eventseq)
-            }
-            else {
+            } else {
                 socket.post("bitsize", 8)
                 socket.post("totalevents", totalCoverage.counter.size())
                 socket.post("pretrain", warmupSeqs.apply { add(eventseq) }, warmupFiles.apply { add(currwarmupFile!!) })
                 warmupFiles.clear()
                 warmupSeqs.clear()
             }
-        }else
+        } else
         // send only result to clients observe method
             socket.observe((result != Result.SUCCESS).toInt(), eventseq)
 
-        FileOutputStream(totalCovFile, true).bufferedWriter().use{ out ->
+        FileOutputStream(totalCovFile, true).bufferedWriter().use { out ->
             out.write((totalCoverage.nonZeroCount * 100.0 / totalCoverage.size()).toString())
             out.newLine()
         }
@@ -122,6 +122,7 @@ class RPCGuidance(
     }
 
 }
+
 private fun Boolean.toInt() = if (this) 1 else 0
 
 
@@ -152,7 +153,7 @@ fun main(args: Array<String>) {
     try {
         // Load the guidance
         val title = "$testClassName#$testMethodName"
-        val warmupGuidance = ZestGuidance(title, null, warmUpOutputDirectory)
+        val warmupGuidance = SeededGuidance(File("fuzz-results-runner (copy)/corpus"))
         val dir = File("data-extract/src/main/python")
         val rpcGuidance = RPCGuidance(
             ProcessBuilder(pythoninter, "transformer/transformer_algo.py").directory(dir).inheritIO()
