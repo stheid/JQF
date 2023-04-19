@@ -10,8 +10,8 @@ import edu.berkeley.cs.jqf.instrument.tracing.events.BranchEvent
 import edu.berkeley.cs.jqf.instrument.tracing.events.TraceEvent
 import janala.instrument.FastCoverageListener
 import socket.RPCInterface
-import java.io.ByteArrayInputStream
 import java.io.File
+import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.InputStream
 import java.net.SocketException
@@ -19,11 +19,11 @@ import java.util.function.Consumer
 import kotlin.system.exitProcess
 
 class RPCGuidance(
-    process: ProcessBuilder, private val warmupGuidance: Guidance?, private val warmupInputs: Long = 10_000L,
+    process: ProcessBuilder, private val warmupGuidance: Guidance?, private val warmupInputs: Int = 10_000,
     outputDirectory: File = File("fuzz-results").apply { mkdir() }
 ) : Guidance {
 
-    private var nInputs = 0L
+    private var nInputs = 0
     private val socket = RPCInterface(process = process)
     private var currwarmupFile: ByteArray? = null
     private var warmupFiles = mutableListOf<ByteArray>()
@@ -32,40 +32,38 @@ class RPCGuidance(
     private var totalCoverage = CoverageFactory.newInstance()
     private val totalCovFile = File(outputDirectory, "total_coverage.csv").apply { bufferedWriter().write("") }
 
-    // if there is no warmup guidance we assume it is already warmed up
-    private val warmupRequired: Boolean
-        get() = warmupGuidance != null && nInputs < warmupInputs
-
     init {
-
-        if (totalCoverage is FastCoverageListener) {
+        if (totalCoverage is FastCoverageListener)
             FastCoverageSnoop.setFastCoverageListener(totalCoverage as FastCoverageListener?)
-        }
     }
 
     override fun getInput(): InputStream {
         // pull data from warmup guidance or from the socket
-        val arr = if (warmupRequired) (warmupGuidance!!.input).run {
-            val bytes = mutableListOf<Int>()
-            while (true) {
-                try {
-                    bytes.add(this.read())
-                } catch (_: IllegalStateException) {
-                    break
+        val arr =
+            if (warmupGuidance != null && nInputs < warmupInputs && warmupGuidance.hasInput())
+                warmupGuidance.input.run {
+                    val bytes = mutableListOf<Int>()
+                    if (this is FileInputStream)
+                        readAllBytes()
+                    else {
+                        while (true) {
+                            try {
+                                bytes.add(read())
+                            } catch (_: IllegalStateException) {
+                                break
+                            }
+                        }
+                        bytes.map { it.toByte() }.toByteArray()
+                    }
+                }.also {
+                    // @FuzzStatement.evaluate() might sometimes eat away inputs because of AssumptionViolationExceptions
+                    //     which will not trigger the handleResult.
+                    // Therefore, we need to override the current file in that case and only store it inside the handleResult
+                    currwarmupFile = it
                 }
-            }
-
-            bytes.map { it.toByte() }.toByteArray()
-        }.also {
-            // @FuzzStatement.evaluate() might sometimes eat away inputs because of AssumptionViolationExceptions
-            //     which will not trigger the handleResult.
-            // Therefore, we need to override the current file in that case and only store it inside the handleResult
-            currwarmupFile = it
-        }
-        else
-            socket.get("geninput")
-//        return PaddedByteArrayInputStream(arr)
-        return ByteArrayInputStream(arr)
+            else
+                socket.get("geninput")
+        return PaddedByteArrayInputStream(arr)
     }
 
     override fun hasInput() = true
@@ -73,9 +71,9 @@ class RPCGuidance(
     override fun handleResult(result: Result?, error: Throwable?) {
         nInputs += 1
         when {
-            (nInputs % 10000 == 0L) -> print("${nInputs / 1000}k")
-            (nInputs % 5000 == 0L) -> print(",")
-            (nInputs % 1000 == 0L) -> print('.')
+            (nInputs % 10000 == 0) -> print("${nInputs / 1000}k")
+            (nInputs % 5000 == 0) -> print(",")
+            (nInputs % 1000 == 0) -> print('.')
         }
 
         // TODO convert it to bytes properly.
@@ -84,14 +82,16 @@ class RPCGuidance(
 
         if (warmupGuidance != null && nInputs <= warmupInputs) {
             warmupGuidance.handleResult(result, error)
-            if (nInputs < warmupInputs) {
-                // store event
-                warmupFiles.add(currwarmupFile!!)
-                warmupSeqs.add(eventseq)
-            } else {
+
+            // store event and file
+            warmupFiles.add(currwarmupFile!!)
+            warmupSeqs.add(eventseq)
+
+            if (nInputs == warmupInputs || !warmupGuidance.hasInput()) {
+                // if warmup finished
                 socket.post("bitsize", 8)
                 socket.post("totalevents", totalCoverage.counter.size())
-                socket.post("pretrain", warmupSeqs.apply { add(eventseq) }, warmupFiles.apply { add(currwarmupFile!!) })
+                socket.post("pretrain", warmupSeqs, warmupFiles)
                 warmupFiles.clear()
                 warmupSeqs.clear()
             }
@@ -109,10 +109,7 @@ class RPCGuidance(
         // todo: disconnect callback after warmup is done. (fix this later: creates memoryleak)
         val warmupCallback = warmupGuidance?.generateCallBack(thread)
         val callback = Consumer<TraceEvent> { e -> handleEvent(e) }
-//        return warmupCallback?.andThen(callback)?:callback
-//        return warmupCallback?.let { callback.andThen(it) }?:callback
-//        Consumer<TraceEvent> { e -> }
-        return callback
+        return warmupCallback?.andThen(callback) ?: callback
     }
 
     private fun handleEvent(e: TraceEvent?) {
@@ -148,18 +145,24 @@ fun main(args: Array<String>) {
     val pythoninter = System.getenv("PYTHONINTER") ?: "python"
     val testClassName = args[0]
     val testMethodName = args[1]
-    val warmUpOutputDirectory = File("fuzz-results-warmup")
 
     try {
-        // Load the guidance
-        val title = "$testClassName#$testMethodName"
-        val warmupGuidance = SeededGuidance(File("fuzz-results-runner (copy)/corpus"))
+        // create dataset
+        // TODO: doing two consecutive GuidedFuzzing.run executions will cause the the coverage events to be triggered only on the first run. hence measurement breaks if we execute this guidance before
+        // TODO: This is probably related to instrumentation of some sort and i have currently no easy way to prevent it.
+        //val guidance =
+        //    MeasureZest("$testClassName#$testMethodName", null, File("fuzz-results-runner"), 20_000, dumpAll = true)
+        //GuidedFuzzing.run(testClassName, testMethodName, guidance, System.out)
+
+        // create Warmup Guidance that reads the generated dataset
+        val warmupGuidance = SeededGuidance(File("fuzz-results-runner/corpus"))
+
         val dir = File("data-extract/src/main/python")
         val rpcGuidance = RPCGuidance(
             ProcessBuilder(pythoninter, "transformer/transformer_algo.py").directory(dir).inheritIO()
                 .apply { environment()["PYTHONPATH"] = dir.absolutePath },
             warmupGuidance = warmupGuidance,
-            warmupInputs = 100_000L
+            warmupInputs = 10_000
         )
 
         // Run the Junit test

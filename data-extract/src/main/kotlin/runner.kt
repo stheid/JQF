@@ -13,7 +13,13 @@ import java.util.concurrent.TimeUnit
 import kotlin.system.exitProcess
 
 
-class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?, val nInputs: Int = 100_000) :
+class MeasureZest(
+    testName: String?,
+    duration: Duration?,
+    outputDirectory: File?,
+    val nInputs: Int = 100_000,
+    val dumpAll: Boolean = false
+) :
     ZestGuidance(testName, duration, outputDirectory) {
     private var events = mutableListOf<Int>()
     private val eventsFile = File(outputDirectory, "events.bin").apply { bufferedWriter().write("") }
@@ -36,11 +42,7 @@ class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?
                     FileOutputStream(idsFile, true).bufferedWriter().apply {
                         write(
                             listOf(
-                                newID,
-                                e.containingClass,
-                                e.containingMethodName,
-                                e.containingMethodDesc,
-                                e.lineNumber
+                                newID, e.containingClass, e.containingMethodName, e.containingMethodDesc, e.lineNumber
                             ).joinToString("\t")
                         )
                         newLine()
@@ -85,15 +87,15 @@ class MeasureZest(testName: String?, duration: Duration?, outputDirectory: File?
             println("Total number of IDs ${iidMap.size}")
             val duration = (Date().time - startTime.time) / 1000.0
             println("Time consumed ${"%.2f".format(duration)}s, ${"%.2f".format(numTrials / duration)} inputs/s")
-            if (iidMap.size.toShort().toInt() != iidMap.size)
-                error("To many IDs, change code back to Integer ids")
-            exitProcess(0)
+            if (iidMap.size.toShort().toInt() != iidMap.size) error("To many IDs, change code back to Integer ids")
         }
     }
 
-//    override fun checkSavingCriteriaSatisfied(result: Result?): List<String> {
-//        return super.checkSavingCriteriaSatisfied(result).apply { add("dumpall") }
-//    }
+    override fun hasInput(): Boolean = super.hasInput() && numTrials < nInputs
+
+    override fun checkSavingCriteriaSatisfied(result: Result?): List<String> {
+        return super.checkSavingCriteriaSatisfied(result).apply { if (dumpAll) add("dumpall") }
+    }
 
     @Throws(IOException::class)
     override fun saveCurrentInput(responsibilities: IntHashSet, why: String?) {
@@ -123,7 +125,7 @@ fun main(args: Array<String>) {
     try {
         // Load the guidance
         val title = "$testClassName#$testMethodName"
-        val guidance = MeasureZest(title, null, outputDirectory, 100_000)
+        val guidance = MeasureZest(title, null, outputDirectory, 50_000, true)
 
         // Run the Junit test
         val res = GuidedFuzzing.run(testClassName, testMethodName, guidance, System.out)
