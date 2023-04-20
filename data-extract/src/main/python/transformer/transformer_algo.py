@@ -92,13 +92,14 @@ class TransformerFuzzer(BaseFuzzer):
         return self.currfile
 
     def create_inputs(self) -> List[bytes]:
+        create_batch_size = self.batch_size * 50
         result: List[bytes] = []
         # 1. sample candidates
         logger.debug(f'train_data: {len(self.train_data)}')
         logger.debug(f'batch_size: {self.model.batch_size}')
         if self.train_data.is_empty:
             raise Exception("No training data available, cannot create inputs. Pre-train first!")
-        if len(self.train_data) < self.model.batch_size:
+        if len(self.train_data) < create_batch_size:
             replace = True
         else:
             replace = False
@@ -172,7 +173,7 @@ class TransformerFuzzer(BaseFuzzer):
 
 
 if __name__ == '__main__':
-    gen = TransformerFuzzer(max_input_len=500, epochs=1, exp=6, vocab_size=100, sequence_length=20,
+    gen = TransformerFuzzer(max_input_len=500, epochs=10, exp=6, vocab_size=100, sequence_length=20,
                             batch_size=64, embed_dim=256, latent_dim=2048, num_heads=8)
     # get initial zest test data
     # seqs, files = load_jqf("/home/ajrox/Programs/pylibfuzzer/examples/transformer_jqf/data/fuzz-results/")
