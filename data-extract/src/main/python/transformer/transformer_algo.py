@@ -103,7 +103,7 @@ class TransformerFuzzer(BaseFuzzer):
             replace = True
         else:
             replace = False
-        for seq in np.random.choice(self.train_data.X, self.model.batch_size, replace=replace):
+        for seq in np.random.choice(self.train_data.X, create_batch_size, replace=replace):
             mutated_seq = self._mutate(seq, size=10, mode="sub")
             result.append(mutated_seq)
 
