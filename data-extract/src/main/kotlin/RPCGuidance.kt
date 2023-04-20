@@ -115,6 +115,8 @@ class RPCGuidance(
                 warmupFiles.clear()
                 warmupResultCodes.clear()
                 warmupSeqs.clear()
+
+                totalCoverage = CoverageFactory.newInstance()
             }
         } else
         // send only result to clients observe method

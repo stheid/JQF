@@ -1,4 +1,6 @@
 import numpy as np
+from typing import List
+from struct import unpack
 from tqdm import tqdm
 
 from sock.rpc_interface import RPCInterface
@@ -22,6 +24,7 @@ class TransformerFuzzer(BaseFuzzer):
                  n_sample_positions=100, epochs=10, exp=6, vocab_size=100, sequence_length=20, batch_size=64,
                  embed_dim=256, latent_dim=2048, num_heads=8):
         super().__init__()
+        self.resultcodes = None
         self.currfile = None
         self.n_discarded_inputs = 0
         self.exp = exp
@@ -67,8 +70,12 @@ class TransformerFuzzer(BaseFuzzer):
         :param seqs: represents input to the model as sequences of events
         :return: None
         """
-        self.train_data, self.val_data = Dataset(X=seqs, y=files, bitsize=self.event_bitsize) \
-            .split(frac=0.8)
+        # TODO convert sequences to list of integers
+        self.resultcodes = [unpack("B", elem)[0] for elem in status]
+
+        # logger.debug("splitting dataset")
+        self.train_data, self.val_data = Dataset(X=np.array(seqs), y=np.array(files)).split(frac=1)
+        # logger.debug(f'len(train_data) : {len(self.train_data)}')
 
         # Initialize model and update train and val data for training
         if not self.model.is_model_created:
@@ -99,7 +106,7 @@ class TransformerFuzzer(BaseFuzzer):
 
         result = []
         for seq in tqdm(self.train_data.sample(create_batch_size)):
-            mutated_seq = self._mutate(seq, size=10, mode="sub")
+            mutated_seq = seq # self._mutate(seq, size=10, mode="sub")
             result.append(self.model.predict(mutated_seq))
         return result
 
