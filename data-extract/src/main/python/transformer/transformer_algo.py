@@ -59,7 +59,7 @@ class TransformerFuzzer(BaseFuzzer):
         self.events = n
 
     @remote.register("pretrain")
-    def pretrain(self, seqs: List[bytes], files: List[bytes]):
+    def pretrain(self, seqs: List[bytes], status: List[bytes], files: List[bytes]):
         """
         :param files: List of input files as bytes, represents output to the model
         :param seqs: represents input to the model as sequences of events

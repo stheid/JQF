@@ -27,6 +27,7 @@ class RPCGuidance(
     private val socket = RPCInterface(process = process)
     private var currwarmupFile: ByteArray? = null
     private var warmupFiles = mutableListOf<ByteArray>()
+    private var warmupResultCodes = mutableListOf<ByteArray>()
     private var warmupSeqs = mutableListOf<ByteArray>()
     private var events = mutableListOf<Int>()
     private var totalCoverage = CoverageFactory.newInstance()
@@ -85,14 +86,16 @@ class RPCGuidance(
 
             // store event and file
             warmupFiles.add(currwarmupFile!!)
+            warmupResultCodes.add(listOf((result != Result.SUCCESS).toInt().toByte()).toByteArray())
             warmupSeqs.add(eventseq)
 
             if (nInputs == warmupInputs || !warmupGuidance.hasInput()) {
                 // if warmup finished
                 socket.post("bitsize", 8)
                 socket.post("totalevents", totalCoverage.counter.size())
-                socket.post("pretrain", warmupSeqs, warmupFiles)
+                socket.post("pretrain", warmupSeqs, warmupResultCodes, warmupFiles)
                 warmupFiles.clear()
+                warmupResultCodes.clear()
                 warmupSeqs.clear()
             }
         } else
