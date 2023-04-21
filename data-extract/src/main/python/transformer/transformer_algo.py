@@ -1,13 +1,11 @@
 import logging
 import numpy as np
-from typing import List
-
 from sock.rpc_interface import RPCInterface
 from transformer.base import BaseFuzzer
 from transformer.dataset import Dataset
 from transformer.model import *
 from transformer.model import TransformerModel
-from utils import load_jqf
+from typing import List
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -43,15 +41,20 @@ class TransformerFuzzer(BaseFuzzer):
         self.events = 100
         self.new_seqs = []
         self.new_files = []
-        self.val_data = Dataset()
-        self.train_data = Dataset()
-
         self.event_bitsize = 8  # bytes
+        self.val_data = Dataset(bitsize=self.event_bitsize)
+        self.train_data = Dataset(bitsize=self.event_bitsize)
+
         remote.obj = self
 
     @remote.register("bitsize")
-    def event_bitsize(self, d: int):
-        self.event_bitsize = d
+    def set_bitsize(self, d: int):
+        if d == 8 or d == 16 or d == 32:
+            self.event_bitsize = d
+        else:
+            self.event_bitsize = 8
+            logger.warn(
+                "Incorrect event_bitsize. Currently only supported: BYTES, SHORT and INT. Defaulting to BYTES")
 
     @remote.register("totalevents")
     def get_total_events(self, n: int):
@@ -68,7 +71,8 @@ class TransformerFuzzer(BaseFuzzer):
         # TODO convert sequences to list of integers
 
         # logger.debug("splitting dataset")
-        self.train_data, self.val_data = Dataset(X=np.array(seqs), y=np.array(files)).split(frac=0.8)
+        self.train_data, self.val_data = Dataset(X=np.array(seqs), y=np.array(files), bitsize=self.event_bitsize) \
+            .split(frac=0.8)
         # logger.debug(f'len(train_data) : {len(self.train_data)}')
 
         # Initialize model and update train and val data for training
@@ -152,7 +156,7 @@ class TransformerFuzzer(BaseFuzzer):
             self.n_discarded_inputs = 0
 
             logger.info("collected enough data to train again.")
-            self.update(Dataset(self.new_files, self.new_seqs))
+            self.update(Dataset(self.new_files, self.new_seqs, bitsize=self.event_bitsize))
             self.new_seqs.clear()
             self.new_files.clear()
 
@@ -173,12 +177,13 @@ class TransformerFuzzer(BaseFuzzer):
 
 
 if __name__ == '__main__':
-    gen = TransformerFuzzer(max_input_len=500, epochs=10, exp=6, vocab_size=100, sequence_length=20,
+    gen = TransformerFuzzer(max_input_len=500, epochs=1, exp=6, vocab_size=100, sequence_length=20,
                             batch_size=64, embed_dim=256, latent_dim=2048, num_heads=8)
+    # gen.set_bitsize(16)
     # get initial zest test data
     # seqs, files = load_jqf("/home/ajrox/Programs/pylibfuzzer/examples/transformer_jqf/data/fuzz-results/")
     # # test pre-train
-    # gen.pretrain(seqs, files)
+    # gen.pretrain(seqs, None, files)
     # # set events size
     # gen.get_total_events(65536)
     # # test geninput and populate batch

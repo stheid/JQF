@@ -1,5 +1,4 @@
 import edu.berkeley.cs.jqf.fuzz.ei.ZestDriver
-import edu.berkeley.cs.jqf.fuzz.ei.ZestGuidance
 import edu.berkeley.cs.jqf.fuzz.guidance.Guidance
 import edu.berkeley.cs.jqf.fuzz.guidance.Result
 import edu.berkeley.cs.jqf.fuzz.junit.GuidedFuzzing
@@ -16,11 +15,13 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.InputStream
 import java.net.SocketException
+import java.nio.ByteBuffer
 import java.util.function.Consumer
 import kotlin.system.exitProcess
 
 class RPCGuidance(
     process: ProcessBuilder, private val warmupGuidance: Guidance?, private val warmupInputs: Int = 10_000,
+    private val bitsize: Int = 8,
     outputDirectory: File = File("fuzz-results").apply { mkdir() }
 ) : Guidance {
 
@@ -79,7 +80,23 @@ class RPCGuidance(
         }
 
         // TODO convert it to bytes properly.
-        val eventseq = events.map { it.toByte() }.toByteArray()
+        val eventseq =
+            when (bitsize) {
+                8 -> events.map { it.toByte() }.toByteArray()
+                16 -> events.run {
+                    val bb = ByteBuffer.allocate(events.size * 2)
+                    this.forEach { bb.putShort(it.toShort()) }
+                    bb.array()
+                }
+
+                32 -> events.run {
+                    val bb = ByteBuffer.allocate(events.size * 4)
+                    this.forEach { bb.putInt(it) }
+                    bb.array()
+                }
+
+                else -> error("Unsupported bitsize used $bitsize")
+            }
         events.clear()
 
         if (warmupGuidance != null && nInputs <= warmupInputs) {
@@ -92,7 +109,7 @@ class RPCGuidance(
 
             if (nInputs == warmupInputs || !warmupGuidance.hasInput()) {
                 // if warmup finished
-                socket.post("bitsize", 8)
+                socket.post("bitsize", bitsize)
                 socket.post("totalevents", totalCoverage.counter.size())
                 socket.post("pretrain", warmupSeqs, warmupResultCodes, warmupFiles)
                 warmupFiles.clear()
@@ -166,7 +183,8 @@ fun main(args: Array<String>) {
             ProcessBuilder(pythoninter, "transformer/transformer_algo.py").directory(dir).inheritIO()
                 .apply { environment()["PYTHONPATH"] = dir.absolutePath },
             warmupGuidance = warmupGuidance,
-            warmupInputs = 10_000
+            warmupInputs = 10_000,
+            bitsize = 16
         )
 
         // Run the Junit test

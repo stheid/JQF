@@ -1,6 +1,8 @@
-from typing import Tuple
 import logging
 import numpy as np
+import struct
+from more_itertools import flatten
+from typing import Tuple
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -9,19 +11,31 @@ logger.setLevel(logging.INFO)
 
 class Dataset:
     def __init__(self, X: np.array = None, y: np.array = None,
-                 max_size=10000, new_sw=2, weights=None):
+                 max_size=10000, new_sw=2, weights=None, bitsize=8):
+        self.bitsize = bitsize  # bytes -> 8, short -> 16, int -> 32
+
         if X is None and y is None:
             self.X = np.array([])
             self.y = np.array([])
-        elif (type(X) != np.array) or (type(y) != np.array):
-            self.X = np.array(X)
-            self.y = np.array(y)
-            if len(self.X.shape) != 1 and len(self.y.shape) != 1:
-                raise RuntimeError(f"X and y should be always 1 dimensional, but found: X.shape: {self.X.shape}, y.shape: "
-                                   f"{self.y.shape}")
         else:
-            self.X = X
-            self.y = y
+            if bitsize == 16:
+                X = flatten(struct.iter_unpack('>H', X))
+            elif bitsize == 32:
+                X = flatten(struct.iter_unpack('>I', X))
+            else:
+                X = flatten(struct.iter_unpack('>B', X))
+            if (type(X) != np.ndarray) or (type(y) != np.ndarray):
+                # todo: convert to list[lists] not np.
+                self.X = np.array(X)
+                self.y = np.array(y)
+                if len(self.X.shape) != 1 and len(self.y.shape) != 1:
+                    raise RuntimeError(
+                        f"X and y should be always 1 dimensional, but found: X.shape: {self.X.shape}, y.shape: "
+                        f"{self.y.shape}")
+            else:
+                self.X = X
+                self.y = y
+
         logger.debug(f'Dataset:init(X,y) -> {len(self.X)}, {len(self.y)}')
         self.max_size = max_size
         self.new_sw = new_sw  # sample weights

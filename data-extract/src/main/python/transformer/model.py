@@ -6,10 +6,9 @@ import tensorflow.keras as keras
 from keras.layers import TextVectorization
 from more_itertools import flatten
 from tensorflow.keras import layers
-from typing import List
-
 from transformer.dataset import Dataset
 from transformer.layers import *
+from typing import List
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -24,7 +23,6 @@ class TransformerModel:
         self.vocab_size = vocab_size
         self.sequence_length = sequence_length
         self.batch_size = batch_size
-        self.event_bitsize = 8
 
         self.embed_dim = embed_dim
         self.latent_dim = latent_dim
@@ -133,8 +131,7 @@ class TransformerModel:
 
         _in, _out = [], []
         for i, o in zip(seqs, files):
-            # TODO mustn't be hardcoded to B, but instead must be variable with respect to what we get from the socket.
-            _in.append(" ".join(map(str, flatten(struct.iter_unpack(">B", i)))))  # events.bin
+            _in.append(" ".join(map(str, i)))
             _out.append(" ".join(map(str, flatten(struct.iter_unpack(">B", o)))))  # corpus/
 
         logger.debug("finished converting bytes to string")
