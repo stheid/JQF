@@ -9,6 +9,7 @@ import edu.berkeley.cs.jqf.instrument.tracing.events.BranchEvent
 import edu.berkeley.cs.jqf.instrument.tracing.events.TraceEvent
 import janala.instrument.FastCoverageListener
 import socket.RPCInterface
+import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -45,7 +46,7 @@ class RPCGuidance(
             if (warmupGuidance != null && nInputs < warmupInputs && warmupGuidance.hasInput())
                 warmupGuidance.input.run {
                     val bytes = mutableListOf<Int>()
-                    if (this is FileInputStream)
+                    if (this is FileInputStream || this is ByteArrayInputStream)
                         readAllBytes()
                     else {
                         while (true) {

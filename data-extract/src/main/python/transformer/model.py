@@ -79,7 +79,6 @@ class TransformerModel:
             :param seq: sequence of events List[int]
             :return: document
             """
-        # todo: convert string to int, replace unk with random num
         tokenized_input_sentence = self.seq_vectorization([" ".join(map(str, seq))])
         decoded_sentence = "[start]"
         for i in range(self.max_output_len):
