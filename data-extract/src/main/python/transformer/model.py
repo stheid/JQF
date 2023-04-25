@@ -6,24 +6,26 @@ import tensorflow.keras as keras
 from keras.layers import TextVectorization
 from more_itertools import flatten
 from tensorflow.keras import layers
+from typing import List
+
 from transformer.dataset import Dataset
 from transformer.layers import *
-from typing import List
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
 
 class TransformerModel:
 
     def __init__(self, vocab_size=100, sequence_length=20, batch_size=64,
-                 embed_dim=256, latent_dim=2048, num_heads=8):
+                 embed_dim=256, latent_dim=2048, num_heads=8, max_output_len=20):
+        self.doc_index_lookup = None
         self.transformer = None
         self.vocab_size = vocab_size
         self.sequence_length = sequence_length
         self.batch_size = batch_size
-
+        self.max_output_len = max_output_len
         self.embed_dim = embed_dim
         self.latent_dim = latent_dim
         self.num_heads = num_heads
@@ -68,29 +70,29 @@ class TransformerModel:
         val = self.preprocess_data_transformer(val_data)
         logger.debug("fitting transformer")
         self.transformer.fit(train, epochs=epochs, validation_data=val)
+        doc_vocab = self.doc_vectorization.get_vocabulary()
+        self.doc_index_lookup = dict(zip(range(len(doc_vocab)), doc_vocab))
 
-    def predict(self, seq) -> bytes:
+    def predict(self, seq, bitsize=8) -> bytes:
         """
 
-            :param seq: sequence of events
+            :param seq: sequence of events List[int]
             :return: document
             """
-
-        spa_vocab = self.transformer.doc_vectorization.get_vocabulary()
-        spa_index_lookup = dict(zip(range(len(spa_vocab)), spa_vocab))
-        max_decoded_sentence_length = 20
-        tokenized_input_sentence = self.transformer.seq_vectorization([seq])
+        # todo: convert string to int, replace unk with random num
+        tokenized_input_sentence = self.seq_vectorization([" ".join(map(str, seq))])
         decoded_sentence = "[start]"
-        for i in range(max_decoded_sentence_length):
-            tokenized_target_sentence = self.transformer.doc_vectorization([decoded_sentence])[:, :-1]
+        for i in range(self.max_output_len):
+            tokenized_target_sentence = self.doc_vectorization([decoded_sentence])[:, :-1]
             predictions = self.transformer([tokenized_input_sentence, tokenized_target_sentence])
 
             sampled_token_index = np.argmax(predictions[0, i, :])
-            sampled_token = spa_index_lookup[sampled_token_index]
+            sampled_token = self.doc_index_lookup[sampled_token_index]
             decoded_sentence += " " + sampled_token
 
-            if sampled_token == "[end]":
+            if sampled_token == "[end]" or sampled_token == "end":
                 break
+        return self.str_to_bytes(decoded_sentence, bitsize)
 
     def preprocess_data_transformer(self, data: Dataset, pretrain: bool = False) -> tf.data.Dataset:
         seqs = data.X
@@ -126,7 +128,7 @@ class TransformerModel:
         return train_ds
 
     @staticmethod
-    def bytes_to_str(seqs: List[int], files: List[bytes]):
+    def bytes_to_str(seqs: List[int], files: bytes):
         logger.debug(f"converting bytes to string {len(seqs)} {len(files)}")
 
         _in, _out = [], []
@@ -137,3 +139,23 @@ class TransformerModel:
         logger.debug("finished converting bytes to string")
 
         return list(zip(_in, _out))
+
+    @staticmethod
+    def str_to_bytes(seqs: str, bitsize: int = 8):
+        if len(seqs) == 0:
+            return seqs
+
+        res = bytearray()
+        seqs = seqs.replace("[UNK]", "")
+        for seq in seqs.split()[1:]:
+            try:
+                if seq != "[end]" and seq != "end":
+                    if bitsize == 8:
+                        res.extend(struct.pack(">B", int(seq)))
+                    if bitsize == 16:
+                        res.extend(struct.pack(">H", int(seq)))
+                    if bitsize == 32:
+                        res.extend(struct.pack(">I", int(seq)))
+            except struct.error as e:
+                logger.error(f'failed to decode sequence to bytes: {e}')
+        return bytes(res)

@@ -1,11 +1,14 @@
 import logging
-import numpy as np
+from tqdm import tqdm
+from typing import List
+
 from sock.rpc_interface import RPCInterface
 from transformer.base import BaseFuzzer
-from transformer.dataset import Dataset
+# from transformer.dataset import Dataset
 from transformer.model import *
 from transformer.model import TransformerModel
-from typing import List
+
+# from utils import load_jqf
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -34,7 +37,7 @@ class TransformerFuzzer(BaseFuzzer):
 
         self.model = TransformerModel(vocab_size=vocab_size, sequence_length=sequence_length,
                                       batch_size=batch_size, embed_dim=embed_dim, latent_dim=latent_dim,
-                                      num_heads=num_heads)
+                                      num_heads=num_heads, max_output_len=sequence_length)
 
         # uint8, float32, samples×width
         self.batch = []
@@ -70,10 +73,8 @@ class TransformerFuzzer(BaseFuzzer):
         """
         # TODO convert sequences to list of integers
 
-        # logger.debug("splitting dataset")
-        self.train_data, self.val_data = Dataset(X=np.array(seqs), y=np.array(files), bitsize=self.event_bitsize) \
+        self.train_data, self.val_data = Dataset(X=seqs, y=files, bitsize=self.event_bitsize) \
             .split(frac=0.8)
-        # logger.debug(f'len(train_data) : {len(self.train_data)}')
 
         # Initialize model and update train and val data for training
         if not self.model.is_model_created:
@@ -86,7 +87,7 @@ class TransformerFuzzer(BaseFuzzer):
         logger.info("Finished pretraining")
 
     @remote.register("geninput")
-    def geninput(self) -> bytes:
+    def geninput(self) -> List[int]:
         if not self.batch:
             logger.info(f'creating a new batch of training data')
             self.batch = self.create_inputs()
@@ -96,9 +97,7 @@ class TransformerFuzzer(BaseFuzzer):
         return self.currfile
 
     def create_inputs(self) -> List[bytes]:
-        create_batch_size = self.batch_size * 50
-        result: List[bytes] = []
-        # 1. sample candidates
+        create_batch_size = self.batch_size
         logger.debug(f'train_data: {len(self.train_data)}')
         logger.debug(f'batch_size: {self.model.batch_size}')
         if self.train_data.is_empty:
@@ -107,13 +106,13 @@ class TransformerFuzzer(BaseFuzzer):
             replace = True
         else:
             replace = False
-        for seq in np.random.choice(self.train_data.X, create_batch_size, replace=replace):
+        result = []
+        for seq in tqdm(np.random.choice(self.train_data.X, create_batch_size, replace=replace).tolist()):
             mutated_seq = self._mutate(seq, size=10, mode="sub")
-            result.append(mutated_seq)
-
+            result.append(self.model.predict(mutated_seq, self.event_bitsize))
         return result
 
-    def _mutate(self, seqs, alpha=2, beta=1, size=5, mode="sub", seq_type: int = 1) -> bytes:
+    def _mutate(self, seqs, alpha=2, beta=1, size=5, mode="sub", seq_type: int = 1) -> List[int]:
         """
         :param seqs: an event with a sequence of bytes
         :param alpha and beta: parameters to shift sampling towards left, right, up or down
@@ -131,13 +130,13 @@ class TransformerFuzzer(BaseFuzzer):
             values = np.random.choice(min(self.events, (1 << self.event_bitsize) - 1), len(n_pos), replace=False)
 
             # mutate
-            res = bytearray(seqs)
+            res = seqs
             for pos, val in zip(n_pos, values):
                 res[int(pos)] = val
 
-            return bytes(res)
+            return res
 
-        print("incorrect mode, no mutation")
+        logger.info("incorrect mode, no mutation")
         return None
 
     @remote.register("observe")
@@ -145,10 +144,9 @@ class TransformerFuzzer(BaseFuzzer):
         logger.debug(f'len(batch): {len(self.batch)}')
         if status != 0:
             self.new_files.append(self.currfile)
-            # TODO convert sequences to list of integers
             self.new_seqs.append(seq)
         else:
-            # result.status != SUCESS, so discarding inputs
+            # result.status != SUCCESS, so discarding inputs
             self.n_discarded_inputs += 1
 
         if len(self.new_files) == self.batch_size:
@@ -156,7 +154,7 @@ class TransformerFuzzer(BaseFuzzer):
             self.n_discarded_inputs = 0
 
             logger.info("collected enough data to train again.")
-            self.update(Dataset(self.new_files, self.new_seqs, bitsize=self.event_bitsize))
+            self.update(Dataset(self.new_seqs, self.new_files, bitsize=self.event_bitsize))
             self.new_seqs.clear()
             self.new_files.clear()
 
@@ -180,24 +178,17 @@ if __name__ == '__main__':
     gen = TransformerFuzzer(max_input_len=500, epochs=1, exp=6, vocab_size=100, sequence_length=20,
                             batch_size=64, embed_dim=256, latent_dim=2048, num_heads=8)
     # gen.set_bitsize(16)
-    # get initial zest test data
-    # seqs, files = load_jqf("/home/ajrox/Programs/pylibfuzzer/examples/transformer_jqf/data/fuzz-results/")
-    # # test pre-train
+    # # seqs, files = load_jqf("/home/ajrox/Programs/pylibfuzzer/examples/transformer_jqf/data/fuzz-results/")
+    # seqs, files = load_jqf("/home/ajrox/Programs/JQF/fuzz-results-runner/")
     # gen.pretrain(seqs, None, files)
-    # # set events size
     # gen.get_total_events(65536)
-    # # test geninput and populate batch
     # a = gen.geninput()
     # print(a)
     # import os
     # import random
     # #
-    # # # test observe_single
     # for i in range(128):
-    #     if len(gen.batch) == 0:
-    #         gen.geninput()
-    #     seq = os.urandom(random.randint(0, 20))
-    #     file = os.urandom(random.randint(0, 500))
+    #     seq = [random.randint(0, 20) for _ in range(10)]
     #     sc = 0
     #     if i % 2 == 0:
     #         sc = 1
