@@ -64,9 +64,9 @@ class TransformerModel:
     def is_model_created(self):
         return self.transformer is not None
 
-    def train(self, data: Dataset, val_data: Dataset, epochs, pre_train=True):
+    def train(self, data: Dataset, val_data: Dataset, epochs):
         logger.debug("preprocessing train data")
-        train = self.preprocess_data_transformer(data, pretrain=pre_train)
+        train = self.preprocess_data_transformer(data, fit_embedding=True)
         logger.debug("preprocessing val data")
         val = self.preprocess_data_transformer(val_data)
         logger.debug("fitting transformer")
@@ -124,14 +124,18 @@ class TransformerModel:
                     and not tf.math.equal(sampled_tokens, '[end]'):
                 # Convert tokens to bytes
                 res.extend(struct.pack(">B", int(sampled_tokens)))
-                res.extend(b' ')
             # Check for end token
             if tf.math.equal(sampled_tokens, "[end]") or tf.math.equal(sampled_tokens, "end"):
                 break
 
         return bytes(res)
 
-    def preprocess_data_transformer(self, data: Dataset, pretrain: bool = False) -> tf.data.Dataset:
+    def preprocess_data_transformer(self, data: Dataset, fit_embedding: bool = False) -> tf.data.Dataset:
+        """
+        :param data:
+        :param fit_embedding: only use for train_data and not for val data
+        :return:
+        """
         seqs = data.X
         docs = data.y
         data_pair = self.bytes_to_str(seqs, docs)
@@ -140,7 +144,7 @@ class TransformerModel:
             out = "[start] " + out + " [end]"
             text_pairs.append((inp, out))
 
-        if pretrain:
+        if fit_embedding:
             train_seq_texts = [pair[0] for pair in text_pairs]
             train_doc_texts = [pair[1] for pair in text_pairs]
             self.seq_vectorization.adapt(train_seq_texts)

@@ -1,9 +1,10 @@
 import logging
-import numpy as np
 import random
 import struct
-from more_itertools import flatten
 from typing import Tuple
+
+import numpy as np
+from more_itertools import flatten
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -97,5 +98,5 @@ class Dataset:
         x, y = [[list(k[:int(frac * len(k))]), list(k[int(frac * len(k)):])] for k in zip(*combined_list)]
         return Dataset(x[0], y[0], max_size=self.max_size,
                        new_sw=self.new_sw, weights=None, bitsize=self.bitsize), \
-            Dataset(x[1], y[1], max_size=self.max_size, new_sw=self.new_sw, weights=None,
+            Dataset(x[1] or None, y[1] or None, max_size=self.max_size, new_sw=self.new_sw, weights=None,
                     bitsize=self.bitsize)

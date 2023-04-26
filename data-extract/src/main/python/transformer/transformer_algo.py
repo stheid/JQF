@@ -168,6 +168,10 @@ class TransformerFuzzer(BaseFuzzer):
 if __name__ == '__main__':
     gen = TransformerFuzzer(max_input_len=500, epochs=1, exp=6, vocab_size=100, sequence_length=20,
                             batch_size=64, embed_dim=256, latent_dim=2048, num_heads=8)
+
+    # import os
+    # import random
+    # from utils import load_jqf
     # gen.set_bitsize(16)
     # # seqs, files = load_jqf("/home/ajrox/Programs/pylibfuzzer/examples/transformer_jqf/data/fuzz-results/")
     # seqs, files = load_jqf("/home/ajrox/Programs/JQF/fuzz-results-runner/", max_n=10000)
@@ -175,8 +179,6 @@ if __name__ == '__main__':
     # gen.get_total_events(65536)
     # a = gen.geninput()
     # print(a)
-    # import os
-    # import random
     # #
     # for i in range(128):
     #     seq = [random.randint(0, 20) for _ in range(10)]
