@@ -1,6 +1,7 @@
 import logging
 import numpy as np
 import struct
+import random
 from more_itertools import flatten
 from typing import Tuple
 
@@ -74,13 +75,19 @@ class Dataset:
     def ydim(self):
         return len(self.y)
 
-    def split(self, frac=.8):
+    def split(self, frac=.8, shuffled=True):
         if self.is_empty:
             raise RuntimeError('Can\'t split an empty dataset')
 
+        combined_list = list(zip(*self))
+
+        # Shuffle the list of tuples
+        if shuffled:
+            random.shuffle(combined_list)
+
         # returns split to train and validation datasets with given fraction
-        x, y = [np.split(k, [int(frac * len(k))]) for k in self]
-        return Dataset(x[0].tolist(), y[0].tolist(), max_size=self.max_size,
+        x, y = [[k[:int(frac * len(k))], k[int(frac * len(k)):]] for k in zip(*combined_list)]
+        return Dataset(x[0], y[0], max_size=self.max_size,
                        new_sw=self.new_sw, weights=None, bitsize=self.bitsize), \
-            Dataset(x[1].tolist(), y[1].tolist(), max_size=self.max_size, new_sw=self.new_sw, weights=None,
+            Dataset(x[1], y[1], max_size=self.max_size, new_sw=self.new_sw, weights=None,
                     bitsize=self.bitsize)
