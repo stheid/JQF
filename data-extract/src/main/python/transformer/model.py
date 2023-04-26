@@ -67,8 +67,10 @@ class TransformerModel:
     def train(self, data: Dataset, val_data: Dataset, epochs):
         logger.debug("preprocessing train data")
         train = self.preprocess_data_transformer(data, fit_embedding=True)
-        logger.debug("preprocessing val data")
-        val = self.preprocess_data_transformer(val_data)
+        val = None
+        if not val_data.is_empty():
+            logger.debug("preprocessing val data")
+            val = self.preprocess_data_transformer(val_data)
         logger.debug("fitting transformer")
         self.transformer.fit(train, epochs=epochs, validation_data=val)
 
