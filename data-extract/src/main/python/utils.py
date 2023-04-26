@@ -1,10 +1,8 @@
+import numpy as np
 import os
 import struct
-from typing import List
-
-import numpy as np
-from more_itertools import flatten
 from tqdm import tqdm
+from typing import List
 
 
 def remove_lsb(array: np.ndarray) -> np.ndarray:
@@ -23,7 +21,7 @@ def remove_lsb(array: np.ndarray) -> np.ndarray:
     return data
 
 
-def load_jqf(dataset_path: str):
+def load_jqf(dataset_path: str, max_n=None):
     """
     loads JQF dataset: used for testing transformer_algo.py
     """
@@ -35,10 +33,12 @@ def load_jqf(dataset_path: str):
             n = struct.unpack(">i", length)[0]
             # seqs.append(" ".join(map(str, flatten(struct.iter_unpack(">h", f.read(n * 2))))))
             seqs.append(f.read(n * 2))
+            if len(seqs) == max_n:
+                break
 
     # prepare files
     files: List[bytes] = []
-    corpus = os.path.join(dataset_path, "corpus")
+    corpus = os.path.join(dataset_path, "corpus")[:max_n]
     for fname in tqdm(sorted(os.listdir(corpus))):
         with open(os.path.join(corpus, fname), "rb") as file:
             # files.append(" ".join(map(str, flatten(struct.iter_unpack(">B", file.read())))))

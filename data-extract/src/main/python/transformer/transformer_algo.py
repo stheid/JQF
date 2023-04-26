@@ -1,4 +1,5 @@
 import logging
+import numpy as np
 from tqdm import tqdm
 from typing import List
 
@@ -7,8 +8,6 @@ from transformer.base import BaseFuzzer
 # from transformer.dataset import Dataset
 from transformer.model import *
 from transformer.model import TransformerModel
-
-# from utils import load_jqf
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -102,12 +101,9 @@ class TransformerFuzzer(BaseFuzzer):
         logger.debug(f'batch_size: {self.model.batch_size}')
         if self.train_data.is_empty:
             raise Exception("No training data available, cannot create inputs. Pre-train first!")
-        if len(self.train_data) < create_batch_size:
-            replace = True
-        else:
-            replace = False
+
         result = []
-        for seq in tqdm(np.random.choice(self.train_data.X, create_batch_size, replace=replace).tolist()):
+        for seq in tqdm(self.train_data.sample(create_batch_size)):
             mutated_seq = self._mutate(seq, size=10, mode="sub")
             result.append(self.model.predict(mutated_seq, self.event_bitsize))
         return result

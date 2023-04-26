@@ -1,7 +1,7 @@
 import logging
 import numpy as np
-import struct
 import random
+import struct
 from more_itertools import flatten
 from typing import Tuple
 
@@ -56,6 +56,14 @@ class Dataset:
         self.weights = np.concatenate((old, new))
         return self
 
+    def sample(self, n):
+        if len(self) < n:
+            # w/ replacement
+            return random.choices(self.X, k=n)
+        else:
+            # wo/ replacement
+            return random.sample(self.X, k=n)
+
     def __iter__(self):
         yield self.X
         yield self.y
@@ -86,7 +94,7 @@ class Dataset:
             random.shuffle(combined_list)
 
         # returns split to train and validation datasets with given fraction
-        x, y = [[k[:int(frac * len(k))], k[int(frac * len(k)):]] for k in zip(*combined_list)]
+        x, y = [[list(k[:int(frac * len(k))]), list(k[int(frac * len(k)):])] for k in zip(*combined_list)]
         return Dataset(x[0], y[0], max_size=self.max_size,
                        new_sw=self.new_sw, weights=None, bitsize=self.bitsize), \
             Dataset(x[1], y[1], max_size=self.max_size, new_sw=self.new_sw, weights=None,
