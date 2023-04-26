@@ -1,7 +1,7 @@
 import numpy as np
-from typing import List
 from struct import unpack
 from tqdm import tqdm
+from typing import List
 
 from sock.rpc_interface import RPCInterface
 from transformer.base import BaseFuzzer
@@ -10,7 +10,7 @@ from transformer.model import TransformerModel
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 
 remote = RPCInterface()
 
@@ -70,11 +70,10 @@ class TransformerFuzzer(BaseFuzzer):
         :param seqs: represents input to the model as sequences of events
         :return: None
         """
-        # TODO convert sequences to list of integers
         self.resultcodes = [unpack("B", elem)[0] for elem in status]
 
         # logger.debug("splitting dataset")
-        self.train_data, self.val_data = Dataset(X=np.array(seqs), y=np.array(files)).split(frac=1)
+        self.train_data, self.val_data = Dataset(X=seqs, y=files, bitsize=self.event_bitsize).split(frac=1)
         # logger.debug(f'len(train_data) : {len(self.train_data)}')
 
         # Initialize model and update train and val data for training
@@ -105,8 +104,8 @@ class TransformerFuzzer(BaseFuzzer):
             raise Exception("No training data available, cannot create inputs. Pre-train first!")
 
         result = []
-        for seq in tqdm(self.train_data.sample(create_batch_size)):
-            mutated_seq = seq # self._mutate(seq, size=10, mode="sub")
+        for seq in tqdm([self.train_data.X[i] for i, x in enumerate(self.resultcodes) if x == 0]):
+            mutated_seq = seq  # self._mutate(seq, size=10, mode="sub")
             result.append(self.model.predict(mutated_seq))
         return result
 
@@ -179,19 +178,13 @@ if __name__ == '__main__':
     # import os
     # import random
     # from utils import load_jqf
-    # gen.set_bitsize(16)
-    # # seqs, files = load_jqf("/home/ajrox/Programs/pylibfuzzer/examples/transformer_jqf/data/fuzz-results/")
-    # seqs, files = load_jqf("/home/ajrox/Programs/JQF/fuzz-results-runner/", max_n=10000)
-    # gen.pretrain(seqs, None, files)
+
+    # seqs, files = load_jqf("/home/ajrox/Programs/pylibfuzzer/examples/transformer_jqf/data/fuzz-results/")
+    # seqs, files = load_jqf("../../../../fuzz-results-runner/", max_n=100)
+
+    # gen.pretrain(seqs, [b"\x00"] * 5 + [b"\x01"] * (len(seqs) - 5), files)
     # gen.get_total_events(65536)
-    # a = gen.geninput()
+    # a = gen.create_inputs()
     # print(a)
-    # #
-    # for i in range(128):
-    #     seq = [random.randint(0, 20) for _ in range(10)]
-    #     sc = 0
-    #     if i % 2 == 0:
-    #         sc = 1
-    #     gen.observe_single(sc, seq)
     # create
     remote.run()
