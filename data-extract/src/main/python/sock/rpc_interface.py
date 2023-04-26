@@ -2,10 +2,9 @@ import functools
 import logging
 import struct
 from inspect import getfullargspec
+from socket import socket, AF_UNIX, SOCK_STREAM
 from struct import unpack, pack
 from typing import List
-
-from socket import socket, AF_UNIX, SOCK_STREAM
 
 logging.basicConfig()
 logger = logging.getLogger(__name__)
@@ -31,7 +30,7 @@ class RPCInterface:
                 logger.debug(f"preparing {name}")
                 if not self.isconnected:
                     # for debugging purposes, this will execute locally if no connection has been established.
-                    logger.warning(f"Calling {name} locally")
+                    logger.debug(f"Calling {name} locally")
                     return func(self_, *args)
                 params = []
                 spec = getfullargspec(func)

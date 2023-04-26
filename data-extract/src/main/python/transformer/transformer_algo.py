@@ -1,11 +1,8 @@
-import logging
 import numpy as np
 from tqdm import tqdm
-from typing import List
 
 from sock.rpc_interface import RPCInterface
 from transformer.base import BaseFuzzer
-# from transformer.dataset import Dataset
 from transformer.model import *
 from transformer.model import TransformerModel
 
@@ -70,8 +67,6 @@ class TransformerFuzzer(BaseFuzzer):
         :param seqs: represents input to the model as sequences of events
         :return: None
         """
-        # TODO convert sequences to list of integers
-
         self.train_data, self.val_data = Dataset(X=seqs, y=files, bitsize=self.event_bitsize) \
             .split(frac=0.8)
 
@@ -105,7 +100,7 @@ class TransformerFuzzer(BaseFuzzer):
         result = []
         for seq in tqdm(self.train_data.sample(create_batch_size)):
             mutated_seq = self._mutate(seq, size=10, mode="sub")
-            result.append(self.model.predict(mutated_seq, self.event_bitsize))
+            result.append(self.model.predict(mutated_seq))
         return result
 
     def _mutate(self, seqs, alpha=2, beta=1, size=5, mode="sub", seq_type: int = 1) -> List[int]:
@@ -175,7 +170,7 @@ if __name__ == '__main__':
                             batch_size=64, embed_dim=256, latent_dim=2048, num_heads=8)
     # gen.set_bitsize(16)
     # # seqs, files = load_jqf("/home/ajrox/Programs/pylibfuzzer/examples/transformer_jqf/data/fuzz-results/")
-    # seqs, files = load_jqf("/home/ajrox/Programs/JQF/fuzz-results-runner/")
+    # seqs, files = load_jqf("/home/ajrox/Programs/JQF/fuzz-results-runner/", max_n=10000)
     # gen.pretrain(seqs, None, files)
     # gen.get_total_events(65536)
     # a = gen.geninput()
