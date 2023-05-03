@@ -103,7 +103,9 @@ class MeasureZest(
         if (why == "dumpall") {
             // revert saving the input if it has only been added because of dumpall
             savedInputs.remove(currentInput)
-            savedInputs[currentParentInputIdx].dec_offspring()
+            if (savedInputs.size > currentParentInputIdx) {
+                savedInputs[currentParentInputIdx].dec_offspring()
+            }
         }
     }
 }
