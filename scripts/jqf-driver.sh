@@ -11,11 +11,11 @@ ROOT_DIR=`dirname $SCRIPT_DIR`
 project="jqf"
 version="2.0-SNAPSHOT"
 
-FUZZ_DIR="${ROOT_DIR}/fuzz/target/"
-INST_DIR="${ROOT_DIR}/instrument/target/"
+FUZZ_DIR="${ROOT_DIR}/fuzz/build/"
+INST_DIR="${ROOT_DIR}/instrument/build/"
 
-FUZZ_JAR="${FUZZ_DIR}/$project-fuzz-$version.jar"
-INST_JAR="${INST_DIR}/$project-instrument-$version.jar"
+FUZZ_JAR="${FUZZ_DIR}/libs/$project-fuzz-$version.jar"
+INST_JAR="${INST_DIR}/libs/$project-instrument-$version.jar"
 
 # Compute classpaths (the /classes are only for development; 
 #   if empty the JARs will have whatever is needed)
